@@ -1,6 +1,6 @@
 
 # Architecture to build for (x86, x64, armv7m, xtensa, xtensawin, rv32imc)
-ARCH ?= x64
+ARCH ?= armv7emsp
 
 # libmad flags
 # FPM_64BIT: compiler knows how to geneerate instructions that can handle 64-bit values with 32-bit registers
@@ -15,8 +15,9 @@ else
 MPY_DIR ?= ../../..
 endif
 
-MOD     := mp-libmad_$(ARCH)
-SRC     := module.c $(wildcard libmad/*.c)
+MOD    := mp-libmad_$(ARCH)
+SRC    := module.c $(wildcard libmad/*.c)
+SRC    := $(filter-out libmad/minimad.c, ${SRC})
 CFLAGS += -Wno-unused-variable ${MAD_CFLAGS}
 
 include ${MPY_DIR}/py/dynruntime.mk
