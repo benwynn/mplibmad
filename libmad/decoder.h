@@ -40,7 +40,7 @@ struct mad_decoder {
     struct mad_stream stream;
     struct mad_frame frame;
     struct mad_synth synth;
-  } *sync;
+  } sync;
 
   void *cb_data;
 

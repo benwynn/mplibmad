@@ -75,8 +75,6 @@ void mad_decoder_init(struct mad_decoder *decoder, void *data,
 {
   decoder->options      = 0;
 
-  decoder->sync         = 0;
-
   decoder->cb_data      = data;
 
   decoder->input_func   = input_func;
@@ -135,9 +133,9 @@ int run_sync(struct mad_decoder *decoder)
     error_data = &bad_last_frame;
   }
 
-  stream = &decoder->sync->stream;
-  frame  = &decoder->sync->frame;
-  synth  = &decoder->sync->synth;
+  stream = &decoder->sync.stream;
+  frame  = &decoder->sync.frame;
+  synth  = &decoder->sync.synth;
 
   mad_stream_init(stream);
   mad_frame_init(frame);
@@ -256,14 +254,7 @@ int mad_decoder_run(struct mad_decoder *decoder)
 {
   int result;
 
-  decoder->sync = malloc(sizeof(*decoder->sync));
-  if (decoder->sync == 0)
-    return -1;
-
   result = run_sync(decoder);
-
-  free(decoder->sync);
-  decoder->sync = 0;
 
   return result;
 }
