@@ -1,2 +1,3 @@
 build/
-mp-libmad_*.mpy
+mplibmad_*.mpy
+.upload

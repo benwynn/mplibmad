@@ -21,8 +21,9 @@ else
 MPY_DIR ?= ../../..
 endif
 
-MOD    := mp-libmad_$(ARCH)
+MOD    := mplibmad_$(ARCH)
 SRC    := module.c natglue.c ${MAD_SRC}
 CFLAGS += -Wno-unused-variable ${MAD_CFLAGS}
 
 include ${MPY_DIR}/py/dynruntime.mk
+

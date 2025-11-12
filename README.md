@@ -1,4 +1,4 @@
-### mp-libmad
+### mplibmad
 
 A Project to enable the use of libmad in MicroPython.
 
