@@ -8,4 +8,4 @@ if [ -z "$PICO_SDK_PATH" ]; then
   exit 1
 fi
 
-make
+make clean all
