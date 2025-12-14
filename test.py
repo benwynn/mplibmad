@@ -12,4 +12,12 @@ except TypeError:
 except Exception as e:
   print(f"got unexpected exception: {type(e).__name__}: {e.value}")
 
+def my_callback(tmp):
+    print("in my_callback")
+    print(f"tmp was: {tmp}")
+    return 123
+
+mplibmad.set_cb(my_callback)
+mplibmad.call_cb(42)
+
 print("Done.")
