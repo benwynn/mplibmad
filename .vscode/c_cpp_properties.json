@@ -3,14 +3,13 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/../micropython",
-                "${workspaceFolder}/../micropython/py"
+                "${workspaceFolder}/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
             "cppStandard": "gnu++17",
+            "configurationProvider": "ms-vscode.makefile-tools",
             "intelliSenseMode": "linux-gcc-x64"
         }
     ],
