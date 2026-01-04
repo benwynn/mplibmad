@@ -1,4 +1,4 @@
-#include "py/dynruntime.h"
+#include <py/dynruntime.h>
 #include "libmad/mad.h"
 
 static mp_obj_t hello(mp_obj_t in) {
