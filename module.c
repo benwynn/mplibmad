@@ -3,8 +3,8 @@
 
 static mp_obj_t hello(mp_obj_t in) {
   const char *world = mp_obj_str_get_str(in);
-  mp_printf(&mp_plat_print, "Hello %s", world);
-  return MP_OBJ_NULL;
+  mp_printf(&mp_plat_print, "Hello %s\n", world);
+  return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(hello_obj, hello);
 
