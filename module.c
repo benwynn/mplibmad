@@ -107,10 +107,6 @@ static mp_obj_t mpy_mad_decoder_init(size_t n_args, const mp_obj_t *pos_args, mp
   struct buffer buffer4k;
   struct mad_decoder decoder;
 
-  (void)input_cb;
-  (void)output_cb;
-  (void)error_cb;
-
   mad_decoder_init(&decoder, &buffer4k,
 		   &input_cb, 0 /* header */, 0 /* filter */, &output_cb,
 		   &error_cb, 0 /* message */);
