@@ -1,7 +1,6 @@
-#include <py/dynruntime.h>
-#include "libmad/mad.h"
 #include "module.h"
 #include "callbacks.h"
+#include "libmad/mad.h"
 
 static mp_obj_t hello(mp_obj_t in) {
   const char *world = mp_obj_str_get_str(in);
@@ -53,18 +52,6 @@ static mp_obj_t mpy_mad_decoder_init(size_t n_args, const mp_obj_t *pos_args, mp
 
   mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
   mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
-
-  // BTREEINFO openinfo = {0};
-  // openinfo.flags = args[ARG_flags].u_int;
-  // openinfo.cachesize = args[ARG_cachesize].u_int;
-  // openinfo.psize = args[ARG_pagesize].u_int;
-  // openinfo.minkeypage = args[ARG_minkeypage].u_int;
-  // DB *db = __bt_open(MP_OBJ_TO_PTR(pos_args[0]), &btree_stream_fvtable, &openinfo, 0);
-  // if (db == NULL) {
-  //     mp_raise_OSError(native_errno);
-  // }
-
-  // return MP_OBJ_FROM_PTR(btree_new(db, pos_args[0]));
 
   struct buffer buffer4k;
   struct mad_decoder decoder;
