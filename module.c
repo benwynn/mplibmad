@@ -1,5 +1,6 @@
 #include <py/dynruntime.h>
 #include "libmad/mad.h"
+#include "module.h"
 
 static mp_obj_t hello(mp_obj_t in) {
   const char *world = mp_obj_str_get_str(in);
