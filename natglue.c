@@ -5,7 +5,7 @@
  */
 
 #include <unistd.h>
-#include "py/dynruntime.h"
+#include <py/dynruntime.h>
 #include "libmad/config.h"
 
 /*
@@ -24,6 +24,22 @@ void free(void *ptr) {
   m_free(ptr);
 }
 */
+
+// mp_obj_print_helper isn't provided by the dynruntime table, so we have to implement it here
+void mp_obj_print_helper(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t kind) {
+  mp_cstack_check();
+  if (o_in == MP_OBJ_NULL) {
+    mp_printf(print, "(nil)");
+    return;
+  }
+  const mp_obj_type_t *type = mp_obj_get_type(o_in);
+  if (MP_OBJ_TYPE_HAS_SLOT(type, print)) {
+    MP_OBJ_TYPE_GET_SLOT(type, print)(print, o_in, kind);
+  } else {
+    mp_printf(print, "<%q>", (qstr)type->name);
+  }
+  
+}
 
 #ifndef NDEBUG
 void panic(char *);
