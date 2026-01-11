@@ -1,6 +1,7 @@
 #include <py/dynruntime.h>
 #include "libmad/mad.h"
 #include "module.h"
+#include "callbacks.h"
 
 static mp_obj_t hello(mp_obj_t in) {
   const char *world = mp_obj_str_get_str(in);
@@ -26,38 +27,6 @@ static mp_obj_t call_cb(mp_obj_t data) {
   return result;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(call_cb_obj, call_cb);
-
-static enum mad_flow input_cb(void *data, struct mad_stream *stream) {
-  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
-  mp_obj_t args[1];
-  args[0] = MP_OBJ_FROM_PTR(stream);
-
-  mp_obj_t result = mp_call_function_n_kw(self->py_input_cb, 1, 0, args);
-  int flow = mp_obj_get_int(result);
-  return (enum mad_flow)flow;
-}
-
-static enum mad_flow output_cb(void *data, struct mad_header const *header, struct mad_pcm *pcm)
-{
-  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
-  mp_obj_t args[2];
-  args[0] = MP_OBJ_FROM_PTR(header);
-  args[1] = MP_OBJ_FROM_PTR(pcm);
-  mp_obj_t result = mp_call_function_n_kw(self->py_output_cb, 2, 0, args);
-  int flow = mp_obj_get_int(result);
-  return (enum mad_flow)flow;
-}
-
-static enum mad_flow error_cb(void *data, struct mad_stream *stream, struct mad_frame *frame)
-{
-  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
-  mp_obj_t args[2];
-  args[0] = MP_OBJ_FROM_PTR(stream);
-  args[1] = MP_OBJ_FROM_PTR(frame);
-  mp_obj_t result = mp_call_function_n_kw(self->py_error_cb, 2, 0, args);
-  int flow = mp_obj_get_int(result);
-  return (enum mad_flow)flow;
-}
 
 struct buffer {
   unsigned char const *start;
