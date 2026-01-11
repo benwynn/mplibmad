@@ -27,16 +27,8 @@ static mp_obj_t call_cb(mp_obj_t data) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(call_cb_obj, call_cb);
 
-struct mp_type_libmad_t {
-    mp_obj_base_t base;
-    // add any fields you need here
-    mp_obj_t py_input_cb;
-    mp_obj_t py_output_cb;
-    mp_obj_t py_error_cb;
-};
-
 static enum mad_flow input_cb(void *data, struct mad_stream *stream) {
-  struct mp_type_libmad_t *self = (struct mp_type_libmad_t *)data;
+  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
   mp_obj_t args[1];
   args[0] = MP_OBJ_FROM_PTR(stream);
 
@@ -47,7 +39,7 @@ static enum mad_flow input_cb(void *data, struct mad_stream *stream) {
 
 static enum mad_flow output_cb(void *data, struct mad_header const *header, struct mad_pcm *pcm)
 {
-  struct mp_type_libmad_t *self = (struct mp_type_libmad_t *)data;
+  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
   mp_obj_t args[2];
   args[0] = MP_OBJ_FROM_PTR(header);
   args[1] = MP_OBJ_FROM_PTR(pcm);
@@ -58,7 +50,7 @@ static enum mad_flow output_cb(void *data, struct mad_header const *header, stru
 
 static enum mad_flow error_cb(void *data, struct mad_stream *stream, struct mad_frame *frame)
 {
-  struct mp_type_libmad_t *self = (struct mp_type_libmad_t *)data;
+  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
   mp_obj_t args[2];
   args[0] = MP_OBJ_FROM_PTR(stream);
   args[1] = MP_OBJ_FROM_PTR(frame);
