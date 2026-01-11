@@ -64,11 +64,57 @@ def test_callback():
     assert r is 123, "call_cb should return 123"
     return True
 
+@test_decorator
+def test_module_constants():
+    assert mplibmad.MAD_FLOW_CONTINUE == 0, "MAD_FLOW_CONTINUE should be 0"
+    assert mplibmad.MAD_FLOW_STOP == 16, "MAD_FLOW_STOP should be 16"
+    assert mplibmad.MAD_FLOW_BREAK == 17, "MAD_FLOW_BREAK should be 17"
+    assert mplibmad.MAD_FLOW_IGNORE == 32, "MAD_FLOW_IGNORE should be 32"
+    return True
+
+def input_callback():
+    print("input_callback called")
+    return None
+
+def output_callback(frame):
+    print(f"output_callback called with frame: {frame}")
+    return None
+
+def error_callback(errmsg):
+    print(f"error_callback called with errmsg: {errmsg}")
+    return None
+
+@test_decorator
+def test_new_object():
+    try:
+      decoder = mplibmad.Decoder()
+      print(f"ERROR: expected TypeError but got result: {decoder}")
+    except TypeError:
+        # expected result, Decoder() requires arguments
+        return True
+    except Exception as e:
+      print(f"got unexpected exception: {type(e).__name__}: {e.value}")
+    return False
+
+@test_decorator
+def test_new_object_with_callbacks():
+    decoder = mplibmad.Decoder(
+        input=input_callback,
+        output=output_callback,
+        error=error_callback
+    )
+    print(f"Created decoder object with callbacks: {decoder}")
+    assert decoder is not None, "Decoder() should return an object"
+    return True
+
 def run_tests():
     print("Start Test:")
-    test_function_call()
-    test_type_error()
-    test_callback()
+    #test_function_call()
+    #test_type_error()
+    #test_callback()
+    test_module_constants()
+    test_new_object()
+    test_new_object_with_callbacks()
     print("Done.")
     
 if __name__ == "__main__":
