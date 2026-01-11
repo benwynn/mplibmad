@@ -22,7 +22,7 @@
 # include <stdio.h>
 # include <unistd.h>
 # include <sys/stat.h>
-//# include <sys/mman.h>
+# include <sys/mman.h>
 
 # include "mad.h"
 
@@ -212,7 +212,7 @@ int decode(unsigned char const *start, unsigned long length)
 
   /* start decoding */
 
-  result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
+  result = mad_decoder_run(&decoder);
 
   /* release the decoder */
 
