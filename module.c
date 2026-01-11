@@ -2,6 +2,7 @@
 #include "callbacks.h"
 #include "libmad/mad.h"
 
+// Sample functions to test functionality
 static mp_obj_t hello(mp_obj_t in) {
   const char *world = mp_obj_str_get_str(in);
   mp_printf(&mp_plat_print, "Hello %s\n", world);
@@ -26,6 +27,16 @@ static mp_obj_t call_cb(mp_obj_t data) {
   return result;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(call_cb_obj, call_cb);
+// End sample functions
+
+// Start libmad.Decoder bindings
+
+// This is the type variable for libmad.Decoder object
+// instantiated in global context so it's accessible everywhere
+mp_obj_full_type_t mp_type_libmad_decoder;
+
+
+// End Implementation of libmad.Decoder
 
 struct buffer {
   unsigned char const *start;
@@ -67,6 +78,14 @@ static MP_DEFINE_CONST_FUN_OBJ_KW(mad_decoder_init_obj, 2, mpy_mad_decoder_init)
 
 mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *args) {
   MP_DYNRUNTIME_INIT_ENTRY
+
+    // Initalize the Decoder type
+  mp_type_libmad_decoder.base.type = &mp_type_type;
+  mp_type_libmad_decoder.flags = MP_TYPE_FLAG_NONE;
+  mp_type_libmad_decoder.name = MP_QSTR_Decoder;
+
+  // Make the Decoder type available on the module
+  mp_store_global(MP_QSTR_Decoder, MP_OBJ_FROM_PTR(&mp_type_libmad_decoder));
 
   // add function calls here
   mp_store_global(MP_QSTR_hello, MP_OBJ_FROM_PTR(&hello_obj));
