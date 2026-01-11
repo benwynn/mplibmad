@@ -4,6 +4,7 @@ import time
 class EnterExitLog():
     def __init__(self, name):
         self.name = name
+        self.result = None
 
     def __enter__(self):
         #print(f"Entering {self.name}")
@@ -14,8 +15,8 @@ class EnterExitLog():
         self.result = result
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if (self.result == Exception):
-            print(f"Test: {self.name} got EXCEPTION {exc_type.__name__}: {exc_value}")
+        if (self.result and isinstance(self.result, Exception)):
+            print(f"Test: {self.name} got unexpected exception: {type(self.result).__name__}: {self.result.value}")
         print(f"Test: {self.name} is {'OK' if (self.result==True) else'FAILED'} in {time.time() - self.init_time} seconds")
 
 def test_decorator(func):
