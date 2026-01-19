@@ -93,14 +93,20 @@ static void mp_libmad_decoder_print(const mp_print_t *print, mp_obj_t self_in, m
   mp_printf(print, ")");
 }
 
+// mad_decoder_run method
+static mp_obj_t mp_libmad_decoder_run(mp_obj_t self_in) {
+  mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
+  int result = mad_decoder_run(&self->decoder);
+  return mp_obj_new_int(result);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_decoder_run_obj, mp_libmad_decoder_run);
+
+// define a local dictionary table
+mp_map_elem_t mod_locals_dict_table[8];
+static MP_DEFINE_CONST_DICT(mod_locals_dict, mod_locals_dict_table);
 // End Implementation of libmad.Decoder
 
-
-struct buffer {
-  unsigned char const *start;
-  unsigned long length;
-};
-
+// Initalize the module
 mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *args) {
   MP_DYNRUNTIME_INIT_ENTRY
 
@@ -112,6 +118,10 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
   // Set Slots (the 12 default methods an object normally has)
   MP_OBJ_TYPE_SET_SLOT(&mp_type_libmad_decoder, make_new, mp_make_new_decoder, 0);
   MP_OBJ_TYPE_SET_SLOT(&mp_type_libmad_decoder, print, mp_libmad_decoder_print, 1);
+
+  // Add local functions to the type
+  mod_locals_dict_table[0] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_run), MP_OBJ_FROM_PTR(&mp_libmad_decoder_run_obj) };
+  MP_OBJ_TYPE_SET_SLOT(&mp_type_libmad_decoder, locals_dict, &mod_locals_dict, 2);
 
   // Make the Decoder type available on the module
   mp_store_global(MP_QSTR_Decoder, MP_OBJ_FROM_PTR(&mp_type_libmad_decoder));

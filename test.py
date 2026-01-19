@@ -85,7 +85,7 @@ def error_callback(errmsg):
     return None
 
 @test_decorator
-def test_new_object():
+def test_new_object_should_fail():
     try:
       decoder = mplibmad.Decoder()
       print(f"ERROR: expected TypeError but got result: {decoder}")
@@ -105,15 +105,17 @@ def test_new_object_with_callbacks():
     )
     print(f"Created decoder object with callbacks: {decoder}")
     assert decoder is not None, "Decoder() should return an object"
+    print(dir(decoder))
     return True
 
 def run_tests():
     print("Start Test:")
+    print(dir(mplibmad))
     #test_function_call()
     #test_type_error()
     #test_callback()
     test_module_constants()
-    test_new_object()
+    test_new_object_should_fail()
     test_new_object_with_callbacks()
     print("Done.")
     
