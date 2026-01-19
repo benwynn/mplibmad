@@ -85,11 +85,6 @@ void mad_decoder_init(struct mad_decoder *decoder, void *data,
   decoder->message_func = message_func;
 }
 
-int mad_decoder_finish(struct mad_decoder *decoder)
-{
-  return 0;
-}
-
 static
 enum mad_flow error_default(void *data, struct mad_stream *stream,
 			    struct mad_frame *frame)

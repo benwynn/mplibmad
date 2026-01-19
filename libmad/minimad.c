@@ -214,9 +214,5 @@ int decode(unsigned char const *start, unsigned long length)
 
   result = mad_decoder_run(&decoder);
 
-  /* release the decoder */
-
-  mad_decoder_finish(&decoder);
-
   return result;
 }
