@@ -31,9 +31,12 @@ include ${MPY_DIR}/py/dynruntime.mk
 	mpremote cp mplibmad_$(ARCH).mpy :lib/mplibmad.mpy
 	touch .upload
 
-.PHONY: test
+.PHONY: test decode
 
 test: .upload
 	mpremote run test.py
+
+decode: .upload
+	mpremote run decode.py
 
 
