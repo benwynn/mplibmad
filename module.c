@@ -39,7 +39,7 @@ mp_obj_full_type_t mp_type_libmad_decoder;
 
 // Constructor
 static mp_obj_t mp_make_new_decoder(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args_in) {
-  //mp_printf(&mp_plat_print, "mp_make_new_decoder(type, n_args=%d, n_kw=%d)\n", n_args, n_kw);
+  mp_printf(&mp_plat_print, "mp_make_new_decoder(type, n_args=%d, n_kw=%d)\n", n_args, n_kw);
 
   enum { ARG_input, ARG_output, ARG_error, ARG_header, ARG_filter, ARG_message };
   mp_arg_t allowed_args[] = {
@@ -96,7 +96,9 @@ static void mp_libmad_decoder_print(const mp_print_t *print, mp_obj_t self_in, m
 // mad_decoder_run method
 static mp_obj_t mp_libmad_decoder_run(mp_obj_t self_in) {
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
+  mp_printf(&mp_plat_print, "In mp_libmad_decoder_run...\n");
   int result = mad_decoder_run(&self->decoder);
+  mp_printf(&mp_plat_print, "mad_decoder_run returned %d\n", result);
   return mp_obj_new_int(result);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_decoder_run_obj, mp_libmad_decoder_run);
