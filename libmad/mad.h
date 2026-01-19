@@ -941,7 +941,6 @@ void mad_decoder_init(struct mad_decoder *, void *,
     ((void) ((decoder)->options = (opts)))
 
 int mad_decoder_run(struct mad_decoder *);
-int mad_decoder_message(struct mad_decoder *, void *, unsigned int *);
 
 # endif
 

@@ -254,12 +254,3 @@ int mad_decoder_run(struct mad_decoder *decoder)
   return result;
 }
 
-/*
- * NAME:	decoder->message()
- * DESCRIPTION:	send a message to and receive a reply from the decoder process
- */
-int mad_decoder_message(struct mad_decoder *decoder,
-			void *message, unsigned int *len)
-{
-  return -1;
-}
