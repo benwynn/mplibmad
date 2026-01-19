@@ -121,9 +121,9 @@ int mad_decoder_run(struct mad_decoder *decoder)
     error_data = &bad_last_frame;
   }
 
-  stream = &decoder->sync.stream;
-  frame  = &decoder->sync.frame;
-  synth  = &decoder->sync.synth;
+  stream = &decoder->stream;
+  frame  = &decoder->frame;
+  synth  = &decoder->synth;
 
   mad_stream_init(stream);
   mad_frame_init(frame);

@@ -36,11 +36,9 @@ enum mad_flow {
 struct mad_decoder {
   int options;
 
-  struct {
-    struct mad_stream stream;
-    struct mad_frame frame;
-    struct mad_synth synth;
-  } sync;
+  struct mad_stream stream;
+  struct mad_frame frame;
+  struct mad_synth synth;
 
   void *cb_data;
 
@@ -72,6 +70,5 @@ void mad_decoder_init(struct mad_decoder *, void *,
     ((void) ((decoder)->options = (opts)))
 
 int mad_decoder_run(struct mad_decoder *);
-int mad_decoder_message(struct mad_decoder *, void *, unsigned int *);
 
 # endif

@@ -905,11 +905,9 @@ enum mad_flow {
 struct mad_decoder {
   int options;
 
-  struct {
-    struct mad_stream stream;
-    struct mad_frame frame;
-    struct mad_synth synth;
-  } sync;
+  struct mad_stream stream;
+  struct mad_frame frame;
+  struct mad_synth synth;
 
   void *cb_data;
 
