@@ -57,24 +57,14 @@
  * DESCRIPTION:	initialize a decoder object with callback routines
  */
 void mad_decoder_init(struct mad_decoder *decoder, void *data,
-		      enum mad_flow (*input_func)(void *,
-						  struct mad_stream *),
-		      enum mad_flow (*header_func)(void *,
-						   struct mad_header const *),
-		      enum mad_flow (*filter_func)(void *,
-						   struct mad_stream const *,
-						   struct mad_frame *),
-		      enum mad_flow (*output_func)(void *,
-						   struct mad_header const *,
-						   struct mad_pcm *),
-		      enum mad_flow (*error_func)(void *,
-						  struct mad_stream *,
-						  struct mad_frame *),
-		      enum mad_flow (*message_func)(void *,
-						    void *, unsigned int *))
+    enum mad_flow (*input_func)  (void *, struct mad_stream *),
+		enum mad_flow (*header_func) (void *, struct mad_header const *),
+		enum mad_flow (*filter_func) (void *, struct mad_stream const *, struct mad_frame *),
+		enum mad_flow (*output_func) (void *, struct mad_header const *, struct mad_pcm *),
+		enum mad_flow (*error_func)  (void *, struct mad_stream *, struct mad_frame *),
+		enum mad_flow (*message_func)(void *, void *, unsigned int *))
 {
   decoder->options      = 0;
-
   decoder->cb_data      = data;
 
   decoder->input_func   = input_func;
@@ -105,8 +95,11 @@ enum mad_flow error_default(void *data, struct mad_stream *stream,
   }
 }
 
-static
-int run_sync(struct mad_decoder *decoder)
+/*
+ * NAME:	decoder->run()
+ * DESCRIPTION:	run the decoder
+ */
+int mad_decoder_run(struct mad_decoder *decoder)
 {
   enum mad_flow (*error_func)(void *, struct mad_stream *, struct mad_frame *);
   void *error_data;
@@ -241,16 +234,4 @@ int run_sync(struct mad_decoder *decoder)
   return result;
 }
 
-/*
- * NAME:	decoder->run()
- * DESCRIPTION:	run the decoder
- */
-int mad_decoder_run(struct mad_decoder *decoder)
-{
-  int result;
-
-  result = run_sync(decoder);
-
-  return result;
-}
 
