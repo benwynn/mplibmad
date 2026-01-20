@@ -31,9 +31,15 @@ def test_decorator(func):
                 return False
     return func_wrapper
 
-def input_callback():
-    print(f"input_callback called")
-    return None
+input_state = 0
+def input_callback(stream):
+    print(f"input_callback called with stream: {stream}")
+    global input_state
+    input_state += 1
+    if input_state > 15:
+        print("input_callback returning EOF")
+        return mplibmad.MAD_FLOW_STOP
+    return mplibmad.MAD_FLOW_CONTINUE
 
 def output_callback(frame):
     print(f"output_callback called with frame: {frame}")
@@ -43,7 +49,7 @@ def error_callback(errmsg):
     print(f"error_callback called with errmsg: {errmsg}")
     return None
 
-#@test_decorator
+@test_decorator
 def decode_file(source, dest):
     print(f"decode_file called with source: {source}, dest: {dest}")
     decoder = mplibmad.Decoder(
