@@ -8,10 +8,11 @@
 
 enum mad_flow input_cb(void *data, struct mad_stream *stream) {
   mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
-  mp_printf(&mp_plat_print, "In input_cb...");
+  mp_printf(&mp_plat_print, "In input_cb(%p == %p, %p)\n", data, self, stream);
 
   mp_obj_t args[1];
   args[0] = MP_OBJ_FROM_PTR(stream);
+  args[0] = mp_obj_new_int(4); // debug
 
   mp_obj_t result = mp_call_function_n_kw(self->py_input_cb, 1, 0, args);
   int flow = mp_obj_get_int(result);
