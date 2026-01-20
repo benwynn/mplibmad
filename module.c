@@ -95,10 +95,23 @@ static void mp_libmad_decoder_print(const mp_print_t *print, mp_obj_t self_in, m
 
 // mad_decoder_run method
 static mp_obj_t mp_libmad_decoder_run(mp_obj_t self_in) {
+  int result = 33; // debug return
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
+  struct mad_decoder *decoder = &self->decoder;
+  struct mad_stream *stream = &decoder->stream;
   mp_printf(&mp_plat_print, "In mp_libmad_decoder_run...\n");
-  int result = mad_decoder_run(&self->decoder);
+  result = mad_decoder_run(decoder);
   mp_printf(&mp_plat_print, "mad_decoder_run returned %d\n", result);
+  mp_printf(&mp_plat_print, "calling input_func...\n");
+  for (int i = 0; i < 100000; i++) { int j = i*i; } // delay loop
+  mp_printf(&mp_plat_print, "decoder: %p\n", decoder);
+  mp_printf(&mp_plat_print, "stream: %p\n", stream);
+  mp_printf(&mp_plat_print, "input_func: %p\n", decoder->input_func);
+  mp_printf(&mp_plat_print, "self %p == %p cb_data\n", self, decoder->cb_data);
+  mp_printf(&mp_plat_print, "py_input_cb: %p == %p\n", self->py_input_cb, ((mp_obj_libmad_decoder_t *)(decoder->cb_data))->py_input_cb);
+  //result = decoder->input_func(decoder->cb_data, stream);
+  result = decoder->input_func(decoder->cb_data, stream);
+  mp_printf(&mp_plat_print, "input_func returned %d\n", result);
   return mp_obj_new_int(result);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_decoder_run_obj, mp_libmad_decoder_run);
