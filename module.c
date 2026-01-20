@@ -73,7 +73,7 @@ static mp_obj_t mp_make_new_decoder(const mp_obj_type_t *type, size_t n_args, si
   self->py_error_cb = vals[ARG_error].u_obj;
 
     // hand 'self' object to C callbacks, so they can translate to Python callbacks
-  mad_decoder_init(&self->decoder, &self,
+  mad_decoder_init(&self->decoder, self,
 		   &input_cb, 0 /* header */, 0 /* filter */, &output_cb,
 		   &error_cb, 0 /* message */);
 
