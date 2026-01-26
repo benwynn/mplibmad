@@ -1,33 +1,6 @@
 #include "module.h"
-#include "callbacks.h"
-#include "libmad/mad.h"
 
-// Sample functions to test functionality
-static mp_obj_t hello(mp_obj_t in) {
-  const char *world = mp_obj_str_get_str(in);
-  mp_printf(&mp_plat_print, "Hello %s\n", world);
-  return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(hello_obj, hello);
-
-mp_obj_t global_callback = MP_OBJ_NULL;
-static mp_obj_t set_cb(mp_obj_t callback) {
-  global_callback = callback;
-  return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(set_cb_obj, set_cb);
-
-static mp_obj_t call_cb(mp_obj_t data) {
-  if (global_callback == MP_OBJ_NULL) {
-    mp_raise_ValueError("callback not set");
-  }
-  mp_obj_t args[1];
-  args[0] = data;
-  mp_obj_t result = mp_call_function_n_kw(global_callback, 1, 0, args);
-  return result;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(call_cb_obj, call_cb);
-// End sample functions
+#define DEBUG (0)
 
 // Start libmad decoder bindings
 
@@ -41,22 +14,22 @@ mp_obj_full_type_t mp_type_libmad_decoder;
 static mp_obj_t mp_make_new_decoder(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args_in) {
   mp_printf(&mp_plat_print, "mp_make_new_decoder(type, n_args=%d, n_kw=%d)\n", n_args, n_kw);
 
-  enum { ARG_input, ARG_output, ARG_error, ARG_header, ARG_filter, ARG_message };
+  enum { ARG_cb_data, ARG_input, ARG_header, ARG_filter, ARG_output, ARG_error };
   mp_arg_t allowed_args[] = {
-      { MP_QSTR_, MP_ARG_KW_ONLY | MP_ARG_OBJ | MP_ARG_REQUIRED, {.u_obj = mp_const_none} },
-      { MP_QSTR_, MP_ARG_KW_ONLY | MP_ARG_OBJ | MP_ARG_REQUIRED, {.u_obj = mp_const_none} },
-      { MP_QSTR_, MP_ARG_KW_ONLY | MP_ARG_OBJ | MP_ARG_REQUIRED, {.u_obj = mp_const_none} },
-      { MP_QSTR_, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = mp_const_none} },
-      { MP_QSTR_, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = mp_const_none} },
-      { MP_QSTR_, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+      { MP_QSTR_ /* cb_data   */, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = mp_const_none } },
+      { MP_QSTR_ /* input     */, MP_ARG_KW_ONLY | MP_ARG_OBJ | MP_ARG_REQUIRED, {.u_obj = MP_OBJ_NULL} },
+      { MP_QSTR_ /* header    */, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+      { MP_QSTR_ /* filter    */, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+      { MP_QSTR_ /* output    */, MP_ARG_KW_ONLY | MP_ARG_OBJ | MP_ARG_REQUIRED, {.u_obj = MP_OBJ_NULL} },
+      { MP_QSTR_ /* error     */, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
   };
   // must load QSTRs at runtime since we are using dynruntime
+  allowed_args[ARG_cb_data].qst = MP_QSTR_cb_data;
   allowed_args[ARG_input].qst = MP_QSTR_input;
-  allowed_args[ARG_output].qst = MP_QSTR_output;
-  allowed_args[ARG_error].qst = MP_QSTR_error;
   allowed_args[ARG_header].qst = MP_QSTR_header;
   allowed_args[ARG_filter].qst = MP_QSTR_filter;
-  allowed_args[ARG_message].qst = MP_QSTR_message;
+  allowed_args[ARG_output].qst = MP_QSTR_output;
+  allowed_args[ARG_error].qst = MP_QSTR_error;
 
   // check arguments
   mp_arg_check_num(n_args, n_kw, 0, 6, true);
@@ -67,15 +40,16 @@ static mp_obj_t mp_make_new_decoder(const mp_obj_type_t *type, size_t n_args, si
   // create the object
   mp_obj_libmad_decoder_t *self = mp_obj_malloc(mp_obj_libmad_decoder_t, type);
 
-  // Store python callbacks in self
-  self->py_input_cb = vals[ARG_input].u_obj;
+  // Store python callbacks
+  self->cb_data      = vals[ARG_cb_data].u_obj;
+  self->py_input_cb  = vals[ARG_input].u_obj;
+  self->py_header_cb = vals[ARG_header].u_obj;
+  self->py_filter_cb = vals[ARG_filter].u_obj;
   self->py_output_cb = vals[ARG_output].u_obj;
-  self->py_error_cb = vals[ARG_error].u_obj;
+  self->py_error_cb  = vals[ARG_error].u_obj;
 
-    // hand 'self' object to C callbacks, so they can translate to Python callbacks
-  mad_decoder_init(&self->decoder, self,
-		   &input_cb, 0 /* header */, 0 /* filter */, &output_cb,
-		   &error_cb, 0 /* message */);
+  // hand 'self' object to C callbacks, so they can translate to Python callbacks
+  self->options = 0;
 
   return MP_OBJ_FROM_PTR(self);
 }
@@ -93,22 +67,48 @@ static void mp_libmad_decoder_print(const mp_print_t *print, mp_obj_t self_in, m
   mp_printf(print, ")");
 }
 
+// Stream methods:
+// stream_buffer
+static mp_obj_t stream_buffer(mp_obj_t self_in, mp_obj_t data_in, mp_obj_t len_in) {
+  mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
+  int len = mp_obj_get_int(len_in);
+
+  if (DEBUG) {
+    mp_printf(&mp_plat_print, "In stream_buffer(data=");
+    mp_obj_print_helper(&mp_plat_print, data_in, PRINT_REPR);
+    mp_printf(&mp_plat_print, ", length=");
+    mp_obj_print_helper(&mp_plat_print, len_in, PRINT_REPR);
+    mp_printf(&mp_plat_print, "\n");
+  }
+  
+  mp_buffer_info_t bufinfo;
+  if (mp_get_buffer(data_in, &bufinfo, MP_BUFFER_RW)) {
+    // bufinfo.len may be larger, but only use 'len' bytes of it
+    mad_stream_buffer(&self->stream, bufinfo.buf, len);
+  } else {
+    mp_raise_TypeError("expected a writable buffer");
+  }
+
+  return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(stream_buffer_obj, stream_buffer);
+
+
 // mad_decoder_run method
 static mp_obj_t mp_libmad_decoder_run(mp_obj_t self_in) {
   int result = 33; // debug return
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
-  struct mad_decoder *decoder = &self->decoder;
-  struct mad_stream *stream = &decoder->stream;
+  struct mad_stream *stream = &self->stream;
   mp_printf(&mp_plat_print, "In mp_libmad_decoder_run...\n");
 
   // DEBUG:
-  mp_printf(&mp_plat_print, "decoder: %p\n", decoder);
+  mp_printf(&mp_plat_print, "decoder: %p\n", self);
   mp_printf(&mp_plat_print, "stream: %p\n", stream);
-  mp_printf(&mp_plat_print, "input_func: %p\n", decoder->input_func);
-  mp_printf(&mp_plat_print, "self %p == %p cb_data\n", self, decoder->cb_data);
-  mp_printf(&mp_plat_print, "py_input_cb: %p == %p\n", self->py_input_cb, ((mp_obj_libmad_decoder_t *)(decoder->cb_data))->py_input_cb);
+  mp_printf(&mp_plat_print, "self %p == %p cb_data\n", self, self->cb_data);
+  mp_printf(&mp_plat_print, "py_input_cb: %p\n", self->py_input_cb);
 
-  result = mad_decoder_run(decoder);
+  mp_printf(&mp_plat_print, "\n\nCalling mad_decoder_run(%p)...\n", self);
+  result = mad_decoder_run(self);
   mp_printf(&mp_plat_print, "mad_decoder_run returned %d\n", result);
 
   return mp_obj_new_int(result);
@@ -135,6 +135,7 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
 
   // Add local functions to the type
   mod_locals_dict_table[0] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_run), MP_OBJ_FROM_PTR(&mp_libmad_decoder_run_obj) };
+  mod_locals_dict_table[1] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_stream_buffer), MP_OBJ_FROM_PTR(&stream_buffer_obj) };
   MP_OBJ_TYPE_SET_SLOT(&mp_type_libmad_decoder, locals_dict, &mod_locals_dict, 2);
 
   // Make the Decoder type available on the module
@@ -147,9 +148,7 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
   mp_store_global(MP_QSTR_MAD_FLOW_IGNORE, mp_obj_new_int(MAD_FLOW_IGNORE));
 
   // add module-level function calls here
-  mp_store_global(MP_QSTR_hello, MP_OBJ_FROM_PTR(&hello_obj));
-  mp_store_global(MP_QSTR_set_cb, MP_OBJ_FROM_PTR(&set_cb_obj));
-  mp_store_global(MP_QSTR_call_cb, MP_OBJ_FROM_PTR(&call_cb_obj));
+  //mp_store_global(MP_QSTR_hello, MP_OBJ_FROM_PTR(&hello_obj));
 
   MP_DYNRUNTIME_INIT_EXIT
 }

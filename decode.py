@@ -32,36 +32,47 @@ def test_decorator(func):
     return func_wrapper
 
 input_state = 0
-def input_callback(stream):
-    print(f"input_callback called with stream: {stream}")
+def input_callback(decoder, data):
     global input_state
-    input_state += 1
-    if input_state > 15:
-        print("input_callback returning EOF")
+    #print(f"input_callback({input_state}) called with decoder({decoder}, {data})")
+    source = data['source']
+    bytes_read = source.readinto(data['buffer'])
+    #print(f"input_callback read {bytes_read} bytes")
+    if input_state > 50:
+        print("input_callback reached max calls")
         return mplibmad.MAD_FLOW_STOP
+    input_state += 1
+    if not bytes_read:
+        print("input_callback reached EOF")
+        return mplibmad.MAD_FLOW_STOP
+
+    decoder.stream_buffer(data['buffer'], bytes_read)
     return mplibmad.MAD_FLOW_CONTINUE
 
-def output_callback(frame):
-    print(f"output_callback called with frame: {frame}")
-    return None
+def output_callback(decoder, data):
+    print(f"output_callback called with {decoder} and {data}")
 
-def error_callback(errmsg):
-    print(f"error_callback called with errmsg: {errmsg}")
-    return None
+    return mplibmad.MAD_FLOW_CONTINUE
 
 @test_decorator
 def decode_file(source, dest):
     print(f"decode_file called with source: {source}, dest: {dest}")
+    cb_data = {
+        'source': source,
+        'dest': dest,
+        'buffer': bytearray(1024),
+        }
     decoder = mplibmad.Decoder(
+        cb_data=cb_data,
         input=input_callback,
         output=output_callback,
-        error=error_callback
+        #error=error_callback
     )
     print(f"Created decoder object with callbacks: {decoder}")
     assert decoder is not None, "Decoder() should return an object"
     time.sleep(1)
     result = decoder.run()
-    return True
+    return result
 
 def main():
     print("Start decode...")

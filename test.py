@@ -99,6 +99,7 @@ def test_new_object_should_fail():
 @test_decorator
 def test_new_object_with_callbacks():
     decoder = mplibmad.Decoder(
+        cb_data=None,
         input=input_callback,
         output=output_callback,
         error=error_callback
