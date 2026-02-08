@@ -10,7 +10,7 @@ mp_obj_full_type_t mp_type_libmad_decoder;
 
 // Implementation of libmad.Decoder
 
-// Constructor
+// Slot: make_new
 static mp_obj_t mp_make_new_decoder(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args_in) {
   mp_printf(&mp_plat_print, "mp_make_new_decoder(type, n_args=%d, n_kw=%d)\n", n_args, n_kw);
 
@@ -51,10 +51,12 @@ static mp_obj_t mp_make_new_decoder(const mp_obj_type_t *type, size_t n_args, si
   // hand 'self' object to C callbacks, so they can translate to Python callbacks
   self->options = 0;
 
+  self->running = false;
+
   return MP_OBJ_FROM_PTR(self);
 }
 
-// Print
+// Slot: print
 static void mp_libmad_decoder_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
   (void)kind;  // unused parameter
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
@@ -67,20 +69,33 @@ static void mp_libmad_decoder_print(const mp_print_t *print, mp_obj_t self_in, m
   mp_printf(print, ")");
 }
 
+// mad_decoder_run method
+static mp_obj_t mp_libmad_decoder_run(mp_obj_t self_in) {
+  int result = 33; // debug return
+  mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
+  self->running = true;
+  mp_printf(&mp_plat_print, "\n\nCalling mad_decoder_run(%p)...\n", self);
+  result = mad_decoder_run(self);
+  mp_printf(&mp_plat_print, "mad_decoder_run returned %d\n", result);
+  self->running = false;
+  return mp_obj_new_int(result);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_decoder_run_obj, mp_libmad_decoder_run);
+
 // Stream methods:
 // stream_buffer
 static mp_obj_t stream_buffer(mp_obj_t self_in, mp_obj_t data_in, mp_obj_t len_in) {
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
   int len = mp_obj_get_int(len_in);
 
-  if (DEBUG) {
+  #if 0
     mp_printf(&mp_plat_print, "In stream_buffer(data=");
     mp_obj_print_helper(&mp_plat_print, data_in, PRINT_REPR);
     mp_printf(&mp_plat_print, ", length=");
     mp_obj_print_helper(&mp_plat_print, len_in, PRINT_REPR);
     mp_printf(&mp_plat_print, "\n");
-  }
-  
+  #endif
+
   mp_buffer_info_t bufinfo;
   if (mp_get_buffer(data_in, &bufinfo, MP_BUFFER_RW)) {
     // bufinfo.len may be larger, but only use 'len' bytes of it
@@ -93,27 +108,59 @@ static mp_obj_t stream_buffer(mp_obj_t self_in, mp_obj_t data_in, mp_obj_t len_i
 }
 static MP_DEFINE_CONST_FUN_OBJ_3(stream_buffer_obj, stream_buffer);
 
-
-// mad_decoder_run method
-static mp_obj_t mp_libmad_decoder_run(mp_obj_t self_in) {
-  int result = 33; // debug return
+// stream->pcm
+static mp_obj_t get_pcm(mp_obj_t self_in) {
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
-  struct mad_stream *stream = &self->stream;
-  mp_printf(&mp_plat_print, "In mp_libmad_decoder_run...\n");
 
-  // DEBUG:
-  mp_printf(&mp_plat_print, "decoder: %p\n", self);
-  mp_printf(&mp_plat_print, "stream: %p\n", stream);
-  mp_printf(&mp_plat_print, "self %p == %p cb_data\n", self, self->cb_data);
-  mp_printf(&mp_plat_print, "py_input_cb: %p\n", self->py_input_cb);
+  if (self->running == false) {
+    return mp_const_none;
+  }
 
-  mp_printf(&mp_plat_print, "\n\nCalling mad_decoder_run(%p)...\n", self);
-  result = mad_decoder_run(self);
-  mp_printf(&mp_plat_print, "mad_decoder_run returned %d\n", result);
+  struct mad_pcm *pcm = &self->synth.pcm;
 
-  return mp_obj_new_int(result);
+  // return a dictionary with some PCM fields
+  mp_obj_t dict = mp_obj_new_dict(5);
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_channels), mp_obj_new_int(pcm->channels));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_samplerate), mp_obj_new_int(pcm->samplerate));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_length), mp_obj_new_int(pcm->length));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_bits_per_sample), mp_obj_new_int(pcm->bits_per_sample));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_samples_per_channel), mp_obj_new_int(pcm->samples_per_channel));
+
+  return dict;
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_decoder_run_obj, mp_libmad_decoder_run);
+static MP_DEFINE_CONST_FUN_OBJ_1(get_pcm_obj, get_pcm);
+
+// Frame methods:
+// frame->header 
+static mp_obj_t get_frame_header(mp_obj_t self_in) {
+  mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
+
+  if (self->running == false) {
+    return mp_const_none;
+  }
+
+  struct mad_header *header = &self->frame.header;
+
+  // return a dictionary with some header fields
+  mp_obj_t dict = mp_obj_new_dict(5);
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_layer), mp_obj_new_int(header->layer));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_mode), mp_obj_new_int(header->mode));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_mode_extension), mp_obj_new_int(header->mode_extension));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_emphasis), mp_obj_new_int(header->emphasis));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_bitrate), mp_obj_new_int(header->bitrate));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_samplerate), mp_obj_new_int(header->samplerate));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_crc_check), mp_obj_new_int(header->crc_check));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_crc_target), mp_obj_new_int(header->crc_target));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_flags), mp_obj_new_int(header->flags));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_private_bits), mp_obj_new_int(header->private_bits));
+
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_duration_seconds), mp_obj_new_int(mad_timer_count(header->duration, MAD_UNITS_SECONDS)));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_duration_milliseconds), mp_obj_new_int(mad_timer_count(header->duration, MAD_UNITS_MILLISECONDS)));
+  
+  return dict;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(get_frame_header_obj, get_frame_header);
+
 
 // define a local dictionary table
 mp_map_elem_t mod_locals_dict_table[8];
@@ -136,6 +183,7 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
   // Add local functions to the type
   mod_locals_dict_table[0] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_run), MP_OBJ_FROM_PTR(&mp_libmad_decoder_run_obj) };
   mod_locals_dict_table[1] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_stream_buffer), MP_OBJ_FROM_PTR(&stream_buffer_obj) };
+  mod_locals_dict_table[2] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_get_frame_header), MP_OBJ_FROM_PTR(&get_frame_header_obj) };
   MP_OBJ_TYPE_SET_SLOT(&mp_type_libmad_decoder, locals_dict, &mod_locals_dict, 2);
 
   // Make the Decoder type available on the module
