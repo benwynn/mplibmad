@@ -30,6 +30,8 @@ typedef struct {
   // add libmad's decoder struct (stream options?)
   int options;
 
+  bool running;
+  
   struct mad_stream stream;
   struct mad_frame frame;
   struct mad_synth synth;

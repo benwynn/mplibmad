@@ -32,21 +32,19 @@ enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder) {
   mp_obj_t result = mp_call_function_n_kw(decoder->py_input_cb, 2, 0, args);
   int flow = mp_obj_get_int(result);
   
-  //mp_printf(&mp_plat_print, " returning flow=%d\n", flow);
   return (enum mad_flow)flow;
 }
 
 static
-enum mad_flow output_cb(void *data, struct mad_header const *header, struct mad_pcm *pcm)
-{
-  mp_obj_libmad_decoder_t *self = (mp_obj_libmad_decoder_t *)data;
+enum mad_flow output_cb(mp_obj_libmad_decoder_t *decoder) {
   mp_printf(&mp_plat_print, "In output_cb...");
+  //struct mad_header *header = &decoder->frame.header;
+  //struct mad_pcm *pcm = &decoder->synth.pcm;
 
-  mp_obj_t args[3];
-  args[0] = self->cb_data;
-  args[1] = MP_OBJ_FROM_PTR(header);
-  args[2] = MP_OBJ_FROM_PTR(pcm);
-  mp_obj_t result = mp_call_function_n_kw(self->py_output_cb, 3, 0, args);
+  mp_obj_t args[2];
+  args[0] = decoder;
+  args[1] = decoder->cb_data;
+  mp_obj_t result = mp_call_function_n_kw(decoder->py_output_cb, 2, 0, args);
   int flow = mp_obj_get_int(result);
 
   mp_printf(&mp_plat_print, " returning flow=%d\n", flow);
@@ -72,25 +70,21 @@ enum mad_flow error_default(int *bad_last_frame, struct mad_stream *stream,
 }
 
 static
-enum mad_flow error_cb(mp_obj_libmad_decoder_t *self, int *bad_last_frame, struct mad_stream *stream, struct mad_frame *frame)
+enum mad_flow error_cb(mp_obj_libmad_decoder_t *decoder, int *bad_last_frame, struct mad_stream *stream, struct mad_frame *frame)
 {
-  mp_printf(&mp_plat_print, "In error_cb... %d\n", stream->error);
-  int flow = 0;
+  mp_printf(&mp_plat_print, "error_cb: stream->error = %s\n", mad_stream_errorstr(stream));
 
-  if (self->py_error_cb == MP_OBJ_NULL) {
+  if (decoder->py_error_cb == MP_OBJ_NULL) {
     // no error callback defined, use default
-    flow = error_default(bad_last_frame, stream, frame);
-  } else {
-    mp_obj_t args[3];
-    args[0] = self->cb_data;
-    args[1] = MP_OBJ_FROM_PTR(stream);
-    args[2] = MP_OBJ_FROM_PTR(frame);
-    mp_obj_t result = mp_call_function_n_kw(self->py_error_cb, 3, 0, args);
-    flow = mp_obj_get_int(result);
+    return error_default(bad_last_frame, stream, frame);
   }
 
-  //mp_printf(&mp_plat_print, " returning flow=%d\n", flow);
-  return (enum mad_flow)flow;
+  mp_obj_t args[2];
+  args[0] = decoder;
+  args[1] = decoder->cb_data;
+  
+  mp_obj_t result = mp_call_function_n_kw(decoder->py_error_cb, 2, 0, args);
+  return mp_obj_get_int(result);
 }
 
 /*
@@ -135,7 +129,7 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
         goto fail;
     }
 
-    mp_printf(&mp_plat_print, "mad_decoder_run: decoding loop...\n");
+    //mp_printf(&mp_plat_print, "mad_decoder_run: decoding loop...\n");
     while (1) {
 #if 0      
       if (decoder->header_func) {
@@ -167,9 +161,11 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
         }
       }
 #endif
-      mp_printf(&mp_plat_print, "mad_decoder_run: decoding frame\n");
-      if (mad_frame_decode(frame, stream) == -1) {
-        mp_printf(&mp_plat_print, "mad_decoder_run: decode failed... %d\n", stream->error);
+      //mp_printf(&mp_plat_print, "mad_decoder_run: decoding frame\n");
+      int decode_result = mad_frame_decode(frame, stream);
+      if (decode_result <= -1) {
+        mp_printf(&mp_plat_print, "mad_decoder_run: decode failed... mad_frame_decode = %d\n", decode_result);
+        mp_printf(&mp_plat_print, "mad_decoder_run: stream->error = %s\n", mad_stream_errorstr(stream));
         if (!MAD_RECOVERABLE(stream->error))
           break;
 
@@ -207,7 +203,7 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
 
       if (decoder->py_output_cb != MP_OBJ_NULL) {
         mp_printf(&mp_plat_print, "mad_decoder_run: output callback\n");
-        switch (output_cb(decoder, &frame->header, &synth->pcm)) {
+        switch (output_cb(decoder)) {
         case MAD_FLOW_STOP:
           goto done;
         case MAD_FLOW_BREAK:
