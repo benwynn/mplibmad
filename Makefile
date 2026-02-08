@@ -1,6 +1,7 @@
 
 # Architecture to build for (x86, x64, armv7m, xtensa, xtensawin, rv32imc)
-ARCH ?= armv7emsp
+ARCH ?= x64
+#ARCH ?= armv7emsp
 
 # libmad flags
 MAD_SRC := $(filter-out libmad/minimad.c, $(wildcard libmad/*.c))
@@ -17,8 +18,8 @@ ifdef PICO_SDK_PATH
 # assume micropython and pico-sdk are at the same level
 MPY_DIR ?= ${PICO_SDK_PATH}/../micropython
 else
-# otherwise, assume we're inside the micropython directory a few levels
-MPY_DIR ?= ../../..
+# otherwise, assume we're adjacent to the micropython directory
+MPY_DIR ?= ../micropython
 endif
 
 MOD    := mplibmad_$(ARCH)
@@ -31,12 +32,19 @@ include ${MPY_DIR}/py/dynruntime.mk
 	mpremote cp mplibmad_$(ARCH).mpy :lib/mplibmad.mpy
 	touch .upload
 
-.PHONY: test decode
+.PHONY: test test-hw decode decode-hw
 
-test: .upload
+# unix test
+test: mplibmad_$(ARCH).mpy
+	micropython test.py
+
+decode: mplibmad_$(ARCH).mpy
+	micropython decode.py
+
+test-hw: .upload
 	mpremote run test.py
 
-decode: .upload
+decode-hw: .upload
 	mpremote run decode.py
 
 

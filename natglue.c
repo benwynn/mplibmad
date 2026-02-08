@@ -43,13 +43,19 @@ void mp_obj_print_helper(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t
 
 #ifndef NDEBUG
 void panic(char *);
-void __assert_func(const char *file, int line, const char *func, const char *failedexpr) {
+# ifdef __GNUC__
+void __assert_fail(const char *__assertion, const char *__file, unsigned int __line, const char *__function)
+# else
+void __assert_func(const char *file, int line, const char *func, const char *failedexpr)
+# endif
+{
   mp_fun_table.raise_msg(
     mp_fun_table.load_global(MP_QSTR_AssertionError),
     "Assertion Failed");
   panic("Assertion Failed");
 }
 #endif
+
 void *memcpy(void *dst, const void *src, size_t n) {
   return mp_fun_table.memmove_(dst, src, n);
 }
