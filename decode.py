@@ -35,13 +35,18 @@ input_state = 0
 def input_callback(decoder, data):
     global input_state
     #print(f"input_callback({input_state}) called with decoder({decoder}, {data})")
+
+    #if input_state > 10:
+    #    print("input_callback reached max calls")
+    #    return mplibmad.MAD_FLOW_STOP
+    
     source = data['source']
     bytes_read = source.readinto(data['buffer'])
+    input_state += bytes_read
+    if (input_state % 4096) == 0:
+        print(f"input_callback total bytes read: {input_state}")
     #print(f"input_callback read {bytes_read} bytes")
-    if input_state > 50:
-        print("input_callback reached max calls")
-        return mplibmad.MAD_FLOW_STOP
-    input_state += 1
+
     if not bytes_read:
         print("input_callback reached EOF")
         return mplibmad.MAD_FLOW_STOP
@@ -50,8 +55,14 @@ def input_callback(decoder, data):
     return mplibmad.MAD_FLOW_CONTINUE
 
 def output_callback(decoder, data):
-    print(f"output_callback called with {decoder} and {data}")
+    #print(f"output_callback called with {decoder}")
 
+    dest = data['dest']
+    header = decoder.get_frame_header()
+    print(f"output_callback: header={header}")
+    pcm = decoder.get_pcm()
+    
+    #print(f"output_callback: nchannels={nchannels}, nsamples={nsamples}")
     return mplibmad.MAD_FLOW_CONTINUE
 
 @test_decorator
