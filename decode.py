@@ -1,5 +1,7 @@
 import mplibmad_x64 as mplibmad # type: ignore
 import time, os
+import struct
+import wave
 
 class EnterExitLog():
     def __init__(self, name):
@@ -54,15 +56,61 @@ def input_callback(decoder, data):
     decoder.stream_buffer(data['buffer'], bytes_read)
     return mplibmad.MAD_FLOW_CONTINUE
 
-def output_callback(decoder, data):
-    #print(f"output_callback called with {decoder}")
+def scale_sample(sample):
+    # round 
+    MAD_F_ONE = 0x10000000
+    MAD_F_FRACBITS = 28
+    sample += (1 << (MAD_F_FRACBITS - 16))
 
+    # clip
+    if sample >= MAD_F_ONE:
+        sample = MAD_F_ONE - 1
+    elif sample < -MAD_F_ONE:
+        sample = -MAD_F_ONE
+
+    # quantize
+    return (sample >> (MAD_F_FRACBITS + 1 - 16))
+
+
+first_write = True
+def output_callback(decoder, data):
+    global first_write
     dest = data['dest']
-    header = decoder.get_frame_header()
-    print(f"output_callback: header={header}")
     pcm = decoder.get_pcm()
+
+    if first_write:
+        dest.setnchannels(pcm['channels'])
+        dest.setframerate(pcm['samplerate'])
+        dest.setsampwidth(pcm['width'])
+        print(f"width: len={len(pcm['left'])} length={pcm['length']} width={pcm['width']}")
+        print(f"channels={pcm['channels']} samplerate={pcm['samplerate']} length={pcm['length']}")
     
-    #print(f"output_callback: nchannels={nchannels}, nsamples={nsamples}")
+    frame = bytearray(pcm['channels'] * pcm['width'] * pcm['length'])
+    idx = 0
+    while idx < pcm['length']:
+        frame_idx = idx * pcm['channels']
+
+        frame[frame_idx+0] = pcm['left'][idx+3]
+        frame[frame_idx+1] = pcm['left'][idx+2]
+        frame[frame_idx+2] = pcm['left'][idx+1]
+        frame[frame_idx+3] = pcm['left'][idx+0]
+        if pcm['channels'] > 1:
+            frame[frame_idx+4] = 0 #pcm['right'][idx+0]
+            frame[frame_idx+5] = 0 #pcm['right'][idx+0]
+            frame[frame_idx+6] = 0 #pcm['right'][idx+0]
+            frame[frame_idx+7] = 0 #pcm['right'][idx+0]
+
+        if idx%1000==0:
+            sample_left = struct.unpack("<f", pcm['left'][idx:idx+4])[0]
+            sample_frame = struct.unpack("<f", frame[frame_idx:frame_idx+4])
+            print(f"sample{idx}: {sample_left:02.4f}")
+            print(f" left: {sample_left}={idx:04}={hex(pcm['left'][idx]):04}|{hex(pcm['left'][idx+1]):04}|{hex(pcm['left'][idx+2]):04}|{hex(pcm['left'][idx+3]):04}")
+            print(f"frame: {sample_frame}={frame_idx:04}={hex(frame[frame_idx]):04}|{hex(frame[frame_idx+1]):04}|{hex(frame[frame_idx+2]):04}|{hex(frame[frame_idx+3]):04}")
+
+        idx += pcm['width'] * pcm['channels']
+    dest.writeframes(frame)
+    first_write = False
+
     return mplibmad.MAD_FLOW_CONTINUE
 
 @test_decorator
@@ -71,7 +119,7 @@ def decode_file(source, dest):
     cb_data = {
         'source': source,
         'dest': dest,
-        'buffer': bytearray(1024),
+        'buffer': bytearray(4096),
         }
     decoder = mplibmad.Decoder(
         cb_data=cb_data,
@@ -90,9 +138,9 @@ def main():
     print(dir(mplibmad))
     print(os.listdir())
     input_name = "test.mp3"
-    output_name = "output.pcm"
+    output_name = "output.wav"
     with open(input_name, "rb") as input_file:
-        with open(output_name, "wb") as output_file:
+        with wave.open(output_name, "w") as output_file:
             print(f"Decoding from {input_name} to {output_name}")
             result = decode_file(input_file, output_file)
             print(f"decode_file result: {result}")

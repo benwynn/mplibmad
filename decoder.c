@@ -21,6 +21,85 @@
 #include "libmad/mad.h"
 #include "decoder.h"
 
+// Source - https://stackoverflow.com/a/43255382
+// Posted by Jeroen
+// Retrieved 2026-02-15, License - CC BY-SA 3.0
+
+#define MP3_BUF_SIZE 4096
+#define MP3_FRAME_SIZE 2881
+
+static enum mad_flow input(mp_obj_libmad_decoder_t *decoder) {
+
+  struct mad_stream *stream = &decoder->stream;
+
+  static char mp3_buf[MP3_BUF_SIZE]; /* MP3 data buffer. */
+
+  int retval; /* Return value from read(). */
+  int len; /* Length of the new buffer. */
+  int eof; /* Whether this is the last buffer that we can provide. */
+
+  /* Figure out how much data we need to move from the end of the previous
+  buffer into the start of the new buffer. */
+  int keep; /* Number of bytes to keep from the previous buffer */
+  if (stream->error != MAD_ERROR_BUFLEN) {
+    /* All data has been consumed, or this is the first call. */
+    keep = 0;
+  } else if (stream->next_frame != NULL) {
+    /* The previous buffer was consumed partially. Move the unconsumed portion
+    into the new buffer. */
+    keep = stream->bufend - stream->next_frame;
+  } else if ((stream->bufend - stream->buffer) < MP3_BUF_SIZE) {
+    /* No data has been consumed at all, but our read buffer isn't full yet,
+    so let's just read more data first. */
+    keep = stream->bufend - stream->buffer;
+  } else {
+    /* No data has been consumed at all, and our read buffer is already full.
+    Shift the buffer to make room for more data, in such a way that any
+    possible frame position in the file is completely in the buffer at least
+    once. */
+    keep = MP3_BUF_SIZE - MP3_FRAME_SIZE;
+  }
+
+  /* Shift the end of the previous buffer to the start of the new buffer if we
+  want to keep any bytes. */
+  if (keep) {
+    memmove(mp3_buf, stream->bufend - keep, keep);
+  }
+
+  /* Append new data to the buffer. */
+  retval = read(in_fd, mp3_buf + keep, MP3_BUF_SIZE - keep);
+  if (retval < 0) {
+    /* Read error. */
+    perror("failed to read from input");
+    return MAD_FLOW_STOP;
+  } else if (retval == 0) {
+    /* End of file. Append MAD_BUFFER_GUARD zero bytes to make sure that the
+    last frame is properly decoded. */
+    if (keep + MAD_BUFFER_GUARD <= MP3_BUF_SIZE) {
+      /* Append all guard bytes and stop decoding after this buffer. */
+      memset(mp3_buf + keep, 0, MAD_BUFFER_GUARD);
+      len = keep + MAD_BUFFER_GUARD;
+      eof = 1;
+    } else {
+      /* The guard bytes don't all fit in our buffer, so we need to continue
+      decoding and write all fo teh guard bytes in the next call to input(). */
+      memset(mp3_buf + keep, 0, MP3_BUF_SIZE - keep);
+      len = MP3_BUF_SIZE;
+      eof = 0;
+    }
+  } else {
+    /* New buffer length is amount of bytes that we kept from the previous
+    buffer plus the bytes that we read just now. */
+    len = keep + retval;
+    eof = 0;
+  }
+
+  /* Pass the new buffer information to libmad. */
+  mad_stream_buffer(stream, mp3_buf, len);
+  return eof ? MAD_FLOW_STOP : MAD_FLOW_CONTINUE;
+}
+
+
 static
 enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder) {
   //mp_printf(&mp_plat_print, "In input_cb(%p)\n", decoder);
@@ -37,9 +116,7 @@ enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder) {
 
 static
 enum mad_flow output_cb(mp_obj_libmad_decoder_t *decoder) {
-  mp_printf(&mp_plat_print, "In output_cb...");
-  //struct mad_header *header = &decoder->frame.header;
-  //struct mad_pcm *pcm = &decoder->synth.pcm;
+  //mp_printf(&mp_plat_print, "In output_cb...");
 
   mp_obj_t args[2];
   args[0] = decoder;
@@ -47,7 +124,7 @@ enum mad_flow output_cb(mp_obj_libmad_decoder_t *decoder) {
   mp_obj_t result = mp_call_function_n_kw(decoder->py_output_cb, 2, 0, args);
   int flow = mp_obj_get_int(result);
 
-  mp_printf(&mp_plat_print, " returning flow=%d\n", flow);
+  //mp_printf(&mp_plat_print, " returning flow=%d\n", flow);
   return (enum mad_flow)flow;
 }
 
@@ -72,7 +149,7 @@ enum mad_flow error_default(int *bad_last_frame, struct mad_stream *stream,
 static
 enum mad_flow error_cb(mp_obj_libmad_decoder_t *decoder, int *bad_last_frame, struct mad_stream *stream, struct mad_frame *frame)
 {
-  mp_printf(&mp_plat_print, "error_cb: stream->error = %s\n", mad_stream_errorstr(stream));
+  //mp_printf(&mp_plat_print, "error_cb: stream->error = %s\n", mad_stream_errorstr(stream));
 
   if (decoder->py_error_cb == MP_OBJ_NULL) {
     // no error callback defined, use default
@@ -164,7 +241,7 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
       //mp_printf(&mp_plat_print, "mad_decoder_run: decoding frame\n");
       int decode_result = mad_frame_decode(frame, stream);
       if (decode_result <= -1) {
-        mp_printf(&mp_plat_print, "mad_decoder_run: decode failed... mad_frame_decode = %d\n", decode_result);
+        //mp_printf(&mp_plat_print, "mad_decoder_run: decode failed... mad_frame_decode = %d\n", decode_result);
         mp_printf(&mp_plat_print, "mad_decoder_run: stream->error = %s\n", mad_stream_errorstr(stream));
         if (!MAD_RECOVERABLE(stream->error))
           break;
@@ -198,11 +275,11 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
         }
       }
 #endif
-      mp_printf(&mp_plat_print, "mad_decoder_run: synth frame\n");
+      //mp_printf(&mp_plat_print, "mad_decoder_run: synth frame\n");
       mad_synth_frame(synth, frame);
 
       if (decoder->py_output_cb != MP_OBJ_NULL) {
-        mp_printf(&mp_plat_print, "mad_decoder_run: output callback\n");
+        //mp_printf(&mp_plat_print, "mad_decoder_run: output callback\n");
         switch (output_cb(decoder)) {
         case MAD_FLOW_STOP:
           goto done;

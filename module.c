@@ -118,13 +118,23 @@ static mp_obj_t get_pcm(mp_obj_t self_in) {
 
   struct mad_pcm *pcm = &self->synth.pcm;
 
+  int width = sizeof(pcm->samples[0][0]);
+  if (self->data_left == NULL) {
+    self->data_left = mp_obj_new_bytearray_by_ref(width*1152, pcm->samples[0]);
+  }
+
+  if (self->data_right == NULL) {
+    self->data_right = mp_obj_new_bytearray_by_ref(width*1152, pcm->samples[1]);
+  }
+
   // return a dictionary with some PCM fields
   mp_obj_t dict = mp_obj_new_dict(5);
   mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_channels), mp_obj_new_int(pcm->channels));
   mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_samplerate), mp_obj_new_int(pcm->samplerate));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_width), mp_obj_new_int(width));
   mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_length), mp_obj_new_int(pcm->length));
-  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_bits_per_sample), mp_obj_new_int(pcm->bits_per_sample));
-  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_samples_per_channel), mp_obj_new_int(pcm->samples_per_channel));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_left), self->data_left);
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_right), self->data_right);
 
   return dict;
 }
@@ -184,6 +194,7 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
   mod_locals_dict_table[0] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_run), MP_OBJ_FROM_PTR(&mp_libmad_decoder_run_obj) };
   mod_locals_dict_table[1] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_stream_buffer), MP_OBJ_FROM_PTR(&stream_buffer_obj) };
   mod_locals_dict_table[2] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_get_frame_header), MP_OBJ_FROM_PTR(&get_frame_header_obj) };
+  mod_locals_dict_table[3] = (mp_map_elem_t){ MP_OBJ_NEW_QSTR(MP_QSTR_get_pcm), MP_OBJ_FROM_PTR(&get_pcm_obj) };
   MP_OBJ_TYPE_SET_SLOT(&mp_type_libmad_decoder, locals_dict, &mod_locals_dict, 2);
 
   // Make the Decoder type available on the module

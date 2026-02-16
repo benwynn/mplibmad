@@ -44,6 +44,9 @@ typedef struct {
   mp_obj_t py_output_cb; // enum mad_flow ouptut(data, header, pcm)
   mp_obj_t py_error_cb;  // enum mad_flow error(data, stream, frame)
 
+  mp_obj_t data_left;
+  mp_obj_t data_right;
+  
 } mp_obj_libmad_decoder_t;
 
 int mad_decoder_run(mp_obj_libmad_decoder_t *);

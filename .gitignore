@@ -1,4 +1,4 @@
 build/
 mplibmad_*.mpy
 .upload
-output.pcm
+output.*
