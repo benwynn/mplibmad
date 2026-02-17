@@ -34,23 +34,34 @@ def test_decorator(func):
     return func_wrapper
 
 input_state = 0
-def input_callback(decoder, data):
+def input_callback(decoder, data, buffer):
     global input_state
 
+    print(f"buffer: len = {len(buffer)}")
     source = data['source']
 
-    bytes_read = source.readinto(data['filebuf'])
+    bytes_read = 0
+    room = len(buffer)
+    mv = memoryview(buffer)
+
+    while room > 0:
+      bytes_read = source.readinto(mv[bytes_read:])
+      room -= bytes_read
+      print(f"bytes_read: {bytes_read}")
+      if bytes_read == 0:
+          # nothing new read? EOF
+          return 0
+      
     input_state += bytes_read
     if (input_state % 4096) == 0:
         print(f"input_callback total bytes read: {input_state}")
 
     if not bytes_read:
         print("input_callback reached EOF")
-        return mplibmad.MAD_FLOW_STOP
+        return 0
 
-
-    decoder.stream_buffer(data['filebuf'], bytes_read)
-    return mplibmad.MAD_FLOW_CONTINUE
+    #decoder.stream_buffer(data['filebuf'], bytes_read)
+    return bytes_read
 
 def scale_sample(sample):
     # round 

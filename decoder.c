@@ -23,14 +23,17 @@
 
 
 static
-enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder, const unsigned char *buf, int room) {
+enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder, unsigned char *buf, int room) {
   //mp_printf(&mp_plat_print, "In input_cb(%p)\n", decoder);
 
-  mp_obj_t args[2];
+  mp_obj_t tmpbuf = mp_obj_new_bytearray_by_ref(room, buf);
+
+  mp_obj_t args[3];
   args[0] = decoder;
   args[1] = decoder->cb_data;
+  args[2] = tmpbuf;
 
-  mp_obj_t result = mp_call_function_n_kw(decoder->py_input_cb, 2, 0, args);
+  mp_obj_t result = mp_call_function_n_kw(decoder->py_input_cb, 3, 0, args);
   int flow = mp_obj_get_int(result);
   
   return (enum mad_flow)flow;
@@ -51,10 +54,11 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
   int room = MP3_BUF_SIZE - keep;
 
   /* Append new data to the buffer. */
-  int bytesread = input_cb(decoder, decoder->stream.bufend, room);
+  int bytesread = input_cb(decoder, decoder->stream.buffer + keep, room);
 
   //retval = read(in_fd, decoder->mp3buf + keep, MP3_BUF_SIZE - keep);
 
+  mp_printf(&mp_plat_print, "mad_decoder_run: input %d\n", bytesread);
 
 
 
@@ -175,8 +179,8 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
   mad_stream_buffer(&decoder->stream, decoder->mp3buf, 0);
 
   decoder->stream.options = decoder->options;
-  
   do {
+    mp_printf(&mp_plat_print, "mad_decoder_run: one\n");
     switch (get_input(decoder)) {
       case MAD_FLOW_STOP:
         goto done;
@@ -190,7 +194,7 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
         goto fail;
     }
 
-    //mp_printf(&mp_plat_print, "mad_decoder_run: decoding loop...\n");
+    mp_printf(&mp_plat_print, "mad_decoder_run: decoding loop...\n");
     while (1) {
 #if 0      
       if (decoder->header_func) {
@@ -282,6 +286,7 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
   result = -1;
 
  done:
+  mp_printf(&mp_plat_print, "mad_decoder_run: done\n");
   mad_synth_finish(synth);
   mad_frame_finish(frame);
   mad_stream_finish(stream);
