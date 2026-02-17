@@ -56,15 +56,10 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
   /* Append new data to the buffer. */
   int bytesread = input_cb(decoder, decoder->stream.buffer + keep, room);
 
-  //retval = read(in_fd, decoder->mp3buf + keep, MP3_BUF_SIZE - keep);
-
   mp_printf(&mp_plat_print, "mad_decoder_run: input %d\n", bytesread);
-
-
 
   if (bytesread < 0) {
     /* Read error. */
-    //perror("failed to read from input");
     return MAD_FLOW_STOP;
   } else if (bytesread == 0) {
     /* End of file. Append MAD_BUFFER_GUARD zero bytes to make sure that the
@@ -83,19 +78,16 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
       mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
       return MAD_FLOW_CONTINUE;
     }
-  } else {
-    /* New buffer length is amount of bytes that we kept from the previous
-    buffer plus the bytes that we read just now. */
-    len = keep + bytesread;
-    eof = 0;
-    /* Pass the new buffer information to libmad. */
-    mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
   }
+  
+  /* New buffer length is amount of bytes that we kept from the previous
+  buffer plus the bytes that we read just now. */
+  len = keep + bytesread;
 
-  if (len > keep) {
-    mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
-  }
-  return eof ? MAD_FLOW_STOP : MAD_FLOW_CONTINUE;
+  /* Pass the new buffer information to libmad. */
+  mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
+
+  return MAD_FLOW_CONTINUE;
 }
 // End Attribution
 
