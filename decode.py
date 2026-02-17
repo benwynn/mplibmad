@@ -36,24 +36,20 @@ def test_decorator(func):
 input_state = 0
 def input_callback(decoder, data):
     global input_state
-    #print(f"input_callback({input_state}) called with decoder({decoder}, {data})")
 
-    #if input_state > 10:
-    #    print("input_callback reached max calls")
-    #    return mplibmad.MAD_FLOW_STOP
-    
     source = data['source']
-    bytes_read = source.readinto(data['buffer'])
+
+    bytes_read = source.readinto(data['filebuf'])
     input_state += bytes_read
     if (input_state % 4096) == 0:
         print(f"input_callback total bytes read: {input_state}")
-    #print(f"input_callback read {bytes_read} bytes")
 
     if not bytes_read:
         print("input_callback reached EOF")
         return mplibmad.MAD_FLOW_STOP
 
-    decoder.stream_buffer(data['buffer'], bytes_read)
+
+    decoder.stream_buffer(data['filebuf'], bytes_read)
     return mplibmad.MAD_FLOW_CONTINUE
 
 def scale_sample(sample):
@@ -119,7 +115,8 @@ def decode_file(source, dest):
     cb_data = {
         'source': source,
         'dest': dest,
-        'buffer': bytearray(4096),
+        'mp3buf': bytearray(4096),
+        'filebuf': bytearray(1024)
         }
     decoder = mplibmad.Decoder(
         cb_data=cb_data,

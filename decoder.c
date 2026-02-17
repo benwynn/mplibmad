@@ -21,84 +21,6 @@
 #include "libmad/mad.h"
 #include "decoder.h"
 
-// Source - https://stackoverflow.com/a/43255382
-// Posted by Jeroen
-// Retrieved 2026-02-15, License - CC BY-SA 3.0
-
-#define MP3_BUF_SIZE 4096
-#define MP3_FRAME_SIZE 2881
-
-static enum mad_flow input(mp_obj_libmad_decoder_t *decoder) {
-
-  struct mad_stream *stream = &decoder->stream;
-
-  static char mp3_buf[MP3_BUF_SIZE]; /* MP3 data buffer. */
-
-  int retval; /* Return value from read(). */
-  int len; /* Length of the new buffer. */
-  int eof; /* Whether this is the last buffer that we can provide. */
-
-  /* Figure out how much data we need to move from the end of the previous
-  buffer into the start of the new buffer. */
-  int keep; /* Number of bytes to keep from the previous buffer */
-  if (stream->error != MAD_ERROR_BUFLEN) {
-    /* All data has been consumed, or this is the first call. */
-    keep = 0;
-  } else if (stream->next_frame != NULL) {
-    /* The previous buffer was consumed partially. Move the unconsumed portion
-    into the new buffer. */
-    keep = stream->bufend - stream->next_frame;
-  } else if ((stream->bufend - stream->buffer) < MP3_BUF_SIZE) {
-    /* No data has been consumed at all, but our read buffer isn't full yet,
-    so let's just read more data first. */
-    keep = stream->bufend - stream->buffer;
-  } else {
-    /* No data has been consumed at all, and our read buffer is already full.
-    Shift the buffer to make room for more data, in such a way that any
-    possible frame position in the file is completely in the buffer at least
-    once. */
-    keep = MP3_BUF_SIZE - MP3_FRAME_SIZE;
-  }
-
-  /* Shift the end of the previous buffer to the start of the new buffer if we
-  want to keep any bytes. */
-  if (keep) {
-    memmove(mp3_buf, stream->bufend - keep, keep);
-  }
-
-  /* Append new data to the buffer. */
-  retval = read(in_fd, mp3_buf + keep, MP3_BUF_SIZE - keep);
-  if (retval < 0) {
-    /* Read error. */
-    perror("failed to read from input");
-    return MAD_FLOW_STOP;
-  } else if (retval == 0) {
-    /* End of file. Append MAD_BUFFER_GUARD zero bytes to make sure that the
-    last frame is properly decoded. */
-    if (keep + MAD_BUFFER_GUARD <= MP3_BUF_SIZE) {
-      /* Append all guard bytes and stop decoding after this buffer. */
-      memset(mp3_buf + keep, 0, MAD_BUFFER_GUARD);
-      len = keep + MAD_BUFFER_GUARD;
-      eof = 1;
-    } else {
-      /* The guard bytes don't all fit in our buffer, so we need to continue
-      decoding and write all fo teh guard bytes in the next call to input(). */
-      memset(mp3_buf + keep, 0, MP3_BUF_SIZE - keep);
-      len = MP3_BUF_SIZE;
-      eof = 0;
-    }
-  } else {
-    /* New buffer length is amount of bytes that we kept from the previous
-    buffer plus the bytes that we read just now. */
-    len = keep + retval;
-    eof = 0;
-  }
-
-  /* Pass the new buffer information to libmad. */
-  mad_stream_buffer(stream, mp3_buf, len);
-  return eof ? MAD_FLOW_STOP : MAD_FLOW_CONTINUE;
-}
-
 
 static
 enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder) {
@@ -113,6 +35,60 @@ enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder) {
   
   return (enum mad_flow)flow;
 }
+
+// Source - https://stackoverflow.com/a/43255382
+// Posted by Jeroen
+// Retrieved 2026-02-15, License - CC BY-SA 3.0
+
+static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
+
+  int retval; /* Return value from read(). */
+  int len; /* Length of the new buffer. */
+  int eof; /* Whether this is the last buffer that we can provide. */
+
+  // move any remaining data to the begining of the stream, tell me how many bytes i can fit in the buffer.
+  int keep = mad_stream_advance_frame(&decoder->stream);
+  int room = MP3_BUF_SIZE - keep;
+
+  /* Append new data to the buffer. */
+  int bytesread = input_cb(decoder, decoder->stream.bufend, room);
+  //retval = read(in_fd, decoder->mp3buf + keep, MP3_BUF_SIZE - keep);
+  if (bytesread < 0) {
+    /* Read error. */
+    //perror("failed to read from input");
+    return MAD_FLOW_STOP;
+  } else if (bytesread == 0) {
+    /* End of file. Append MAD_BUFFER_GUARD zero bytes to make sure that the
+    last frame is properly decoded. */
+    if (keep + MAD_BUFFER_GUARD <= MP3_BUF_SIZE) {
+      /* Append all guard bytes and stop decoding after this buffer. */
+      memset(decoder->mp3buf + keep, 0, MAD_BUFFER_GUARD);
+      len = keep + MAD_BUFFER_GUARD;
+      mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
+      return MAD_FLOW_STOP;
+    } else {
+      /* The guard bytes don't all fit in our buffer, so we need to continue
+      decoding and write all of the guard bytes in the next call to input(). */
+      memset(decoder->mp3buf + keep, 0, MP3_BUF_SIZE - keep);
+      len = MP3_BUF_SIZE;
+      mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
+      return MAD_FLOW_CONTINUE;
+    }
+  } else {
+    /* New buffer length is amount of bytes that we kept from the previous
+    buffer plus the bytes that we read just now. */
+    len = keep + bytesread;
+    eof = 0;
+    /* Pass the new buffer information to libmad. */
+    mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
+  }
+
+  if (len > keep) {
+    mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
+  }
+  return eof ? MAD_FLOW_STOP : MAD_FLOW_CONTINUE;
+}
+// End Attribution
 
 static
 enum mad_flow output_cb(mp_obj_libmad_decoder_t *decoder) {
@@ -186,14 +162,17 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
   frame  = &decoder->frame;
   synth  = &decoder->synth;
 
-  mad_stream_init(stream);
+  mad_stream_init(stream, decoder->mp3buf, MP3_BUF_SIZE);
   mad_frame_init(frame);
   mad_synth_init(synth);
 
-  mad_stream_options(stream, decoder->options);
+  // give the stream our buffer, but tell it it doesn't have any data right now.
+  mad_stream_buffer(&decoder->stream, decoder->mp3buf, 0);
+
+  decoder->stream.options = decoder->options;
   
   do {
-    switch (input_cb(decoder)) {
+    switch (get_input(decoder)) {
       case MAD_FLOW_STOP:
         goto done;
       case MAD_FLOW_BREAK:

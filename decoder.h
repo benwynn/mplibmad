@@ -12,6 +12,9 @@
 #include <py/dynruntime.h>
 #include "libmad/mad.h"
 
+#define MP3_BUF_SIZE 4096
+#define MP3_FRAME_SIZE 2881
+
 enum mad_flow {
   MAD_FLOW_CONTINUE = 0x0000,	/* continue normally */
   MAD_FLOW_STOP     = 0x0010,	/* stop decoding normally */
@@ -35,6 +38,9 @@ typedef struct {
   struct mad_stream stream;
   struct mad_frame frame;
   struct mad_synth synth;
+
+  // internal mp3 buffer will be used by the stream object
+  unsigned char mp3buf[MP3_BUF_SIZE];
 
   // add addional data for MicroPython callbacks
   mp_obj_t cb_data;

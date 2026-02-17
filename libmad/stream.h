@@ -23,6 +23,7 @@
 # define LIBMAD_STREAM_H
 
 # include "bit.h"
+# include <string.h>
 
 # define MAD_BUFFER_GUARD	8
 # define MAD_BUFFER_MDLEN	(511 + 2048 + MAD_BUFFER_GUARD)
@@ -61,13 +62,13 @@ enum mad_error {
 struct mad_stream {
   unsigned char const *buffer;		/* input bitstream buffer */
   unsigned char const *bufend;		/* end of buffer */
-  unsigned long skiplen;		/* bytes to skip before next frame */
 
   int sync;				/* stream sync found */
   unsigned long freerate;		/* free bitrate (fixed) */
 
   unsigned char const *this_frame;	/* start of current frame */
   unsigned char const *next_frame;	/* start of next frame */
+
   struct mad_bitptr ptr;		/* current processing bit pointer */
 
   struct mad_bitptr anc_ptr;		/* ancillary bits pointer */
@@ -91,16 +92,11 @@ enum {
 # endif
 };
 
-void mad_stream_init(struct mad_stream *);
+void mad_stream_init(struct mad_stream *, const unsigned char *buffer);
 void mad_stream_finish(struct mad_stream *);
-
-# define mad_stream_options(stream, opts)  \
-    ((void) ((stream)->options = (opts)))
-
-void mad_stream_buffer(struct mad_stream *,
-		       unsigned char const *, unsigned long);
+void mad_stream_buffer(struct mad_stream *,	 unsigned char const *, unsigned long);
 void mad_stream_skip(struct mad_stream *, unsigned long);
-
+unsigned int mad_stream_advance_frame(struct mad_stream *);
 int mad_stream_sync(struct mad_stream *);
 
 char const *mad_stream_errorstr(struct mad_stream const *);

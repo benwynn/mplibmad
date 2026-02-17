@@ -304,25 +304,6 @@ int mad_header_decode(struct mad_header *header, struct mad_stream *stream)
     goto fail;
   }
 
-  /* stream skip */
-  if (stream->skiplen) {
-    if (!stream->sync)
-      ptr = stream->this_frame;
-
-    if (end - ptr < stream->skiplen) {
-      stream->skiplen   -= end - ptr;
-      stream->next_frame = end;
-
-      stream->error = MAD_ERROR_BUFLEN;
-      goto fail;
-    }
-
-    ptr += stream->skiplen;
-    stream->skiplen = 0;
-
-    stream->sync = 1;
-  }
-
  sync:
   /* synchronize */
   if (stream->sync) {

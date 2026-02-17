@@ -34,19 +34,18 @@
  * NAME:	stream->init()
  * DESCRIPTION:	initialize stream struct
  */
-void mad_stream_init(struct mad_stream *stream)
+void mad_stream_init(struct mad_stream *stream, const unsigned char *buffer)
 {
-  stream->buffer     = 0;
-  stream->bufend     = 0;
-  stream->skiplen    = 0;
+  stream->buffer     = buffer;
+  stream->bufend     = buffer;
 
   stream->sync       = 0;
   stream->freerate   = 0;
 
-  stream->this_frame = 0;
-  stream->next_frame = 0;
-  mad_bit_init(&stream->ptr, 0);
+  stream->this_frame = buffer;
+  stream->next_frame = buffer;
 
+  mad_bit_init(&stream->ptr, 0);
   mad_bit_init(&stream->anc_ptr, 0);
   stream->anc_bitlen = 0;
 
@@ -85,12 +84,37 @@ void mad_stream_buffer(struct mad_stream *stream,
 }
 
 /*
- * NAME:	stream->skip()
- * DESCRIPTION:	arrange to skip bytes before the next frame
+ * NAME:  stream->advance_frame()
+ * DESCRIPTION: advance the buffer to the next frame and adjust len
+ * RETURN: returns how many valid bytes are in the buffer
  */
-void mad_stream_skip(struct mad_stream *stream, unsigned long length)
+unsigned int mad_stream_advance_frame(struct mad_stream *stream)
 {
-  stream->skiplen += length;
+  unsigned int keep = 0;
+
+  if (! (stream && stream->buffer && stream->bufend && stream->next_frame)) {
+    // something's wrong with this stream's buffer
+    return 0;
+  }
+
+  //  buffer ...  next_frame ... bufend
+  // if next_frame == buffer, keep bytes from next_frame to buffer
+  // if next_frame == bufend, return 0
+  // if next_frame in the middle, slide data up, return bytes
+
+  // if next_frame is between the start and end of the buffer, then we have data to keep
+  if (stream->next_frame < stream->bufend) {
+    keep = stream->bufend - stream->next_frame;
+    if (stream->buffer < stream->next_frame) {
+      // slide next frame back to the begining of the buffer
+      memmove(stream->buffer, stream->next_frame, keep);
+
+      // reset pointers to point at the begining of the buffer again
+      mad_stream_buffer(stream, stream->buffer, keep);
+    }
+  }
+
+  return keep;
 }
 
 /*

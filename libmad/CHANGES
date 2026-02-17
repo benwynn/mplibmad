@@ -101,10 +101,7 @@ Version 0.13.0 (beta)
   * Added `samplerate' and `channels' fields to synth.pcm struct to allow
     these to be different from the decoded frame, and for simpler access.
 
-  * Added new mad_stream_options() and mad_decoder_options() API entries for
-    special runtime decoding options.
-
-  * Added new MAD_OPTION_IGNORECRC and MAD_OPTION_HALFSAMPLERATE options.
+s  * Added new MAD_OPTION_IGNORECRC and MAD_OPTION_HALFSAMPLERATE options.
 
   * Added new MAD_FLAG_FREEFORMAT indicator flag.
 
