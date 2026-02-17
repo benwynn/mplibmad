@@ -2,3 +2,5 @@ build/
 mplibmad_*.mpy
 .upload
 output.*
+wave.py
+chunk.py
