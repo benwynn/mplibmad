@@ -23,7 +23,7 @@
 
 
 static
-enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder) {
+enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder, const unsigned char *buf, int room) {
   //mp_printf(&mp_plat_print, "In input_cb(%p)\n", decoder);
 
   mp_obj_t args[2];
@@ -52,7 +52,12 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
 
   /* Append new data to the buffer. */
   int bytesread = input_cb(decoder, decoder->stream.bufend, room);
+
   //retval = read(in_fd, decoder->mp3buf + keep, MP3_BUF_SIZE - keep);
+
+
+
+
   if (bytesread < 0) {
     /* Read error. */
     //perror("failed to read from input");
@@ -162,7 +167,7 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
   frame  = &decoder->frame;
   synth  = &decoder->synth;
 
-  mad_stream_init(stream, decoder->mp3buf, MP3_BUF_SIZE);
+  mad_stream_init(stream, decoder->mp3buf);
   mad_frame_init(frame);
   mad_synth_init(synth);
 

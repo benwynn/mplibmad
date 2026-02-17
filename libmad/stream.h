@@ -60,7 +60,7 @@ enum mad_error {
 # define MAD_RECOVERABLE(error)	((error) & 0xff00)
 
 struct mad_stream {
-  unsigned char const *buffer;		/* input bitstream buffer */
+  unsigned char *buffer;		/* input bitstream buffer */
   unsigned char const *bufend;		/* end of buffer */
 
   int sync;				/* stream sync found */
@@ -92,9 +92,9 @@ enum {
 # endif
 };
 
-void mad_stream_init(struct mad_stream *, const unsigned char *buffer);
+void mad_stream_init(struct mad_stream *, unsigned char *buffer);
 void mad_stream_finish(struct mad_stream *);
-void mad_stream_buffer(struct mad_stream *,	 unsigned char const *, unsigned long);
+void mad_stream_buffer(struct mad_stream *,	 unsigned char *, unsigned long);
 void mad_stream_skip(struct mad_stream *, unsigned long);
 unsigned int mad_stream_advance_frame(struct mad_stream *);
 int mad_stream_sync(struct mad_stream *);

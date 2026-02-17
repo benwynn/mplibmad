@@ -34,7 +34,7 @@
  * NAME:	stream->init()
  * DESCRIPTION:	initialize stream struct
  */
-void mad_stream_init(struct mad_stream *stream, const unsigned char *buffer)
+void mad_stream_init(struct mad_stream *stream, unsigned char *buffer)
 {
   stream->buffer     = buffer;
   stream->bufend     = buffer;
@@ -69,8 +69,7 @@ void mad_stream_finish(struct mad_stream *stream)
  * NAME:	stream->buffer()
  * DESCRIPTION:	set stream buffer pointers
  */
-void mad_stream_buffer(struct mad_stream *stream,
-		       unsigned char const *buffer, unsigned long length)
+void mad_stream_buffer(struct mad_stream *stream, unsigned char *buffer, unsigned long length)
 {
   stream->buffer = buffer;
   stream->bufend = buffer + length;
