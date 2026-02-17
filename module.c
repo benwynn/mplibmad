@@ -108,7 +108,7 @@ static mp_obj_t stream_buffer(mp_obj_t self_in, mp_obj_t data_in, mp_obj_t len_i
 }
 static MP_DEFINE_CONST_FUN_OBJ_3(stream_buffer_obj, stream_buffer);
 
-// stream->pcm
+// stream->pcm gets Q3.24 signed fixed point samples.
 static mp_obj_t get_pcm(mp_obj_t self_in) {
   mp_obj_libmad_decoder_t *self = MP_OBJ_TO_PTR(self_in);
 

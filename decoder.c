@@ -62,6 +62,8 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
     /* Read error. */
     return MAD_FLOW_STOP;
   } else if (bytesread == 0) {
+    mp_printf(&mp_plat_print, "mad_decoder_run: EOF %d\n", keep);
+
     /* End of file. Append MAD_BUFFER_GUARD zero bytes to make sure that the
     last frame is properly decoded. */
     if (keep + MAD_BUFFER_GUARD <= MP3_BUF_SIZE) {
@@ -69,6 +71,7 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
       memset(decoder->mp3buf + keep, 0, MAD_BUFFER_GUARD);
       len = keep + MAD_BUFFER_GUARD;
       mad_stream_buffer(&decoder->stream, decoder->mp3buf, len);
+      mp_printf(&mp_plat_print, "mad_decoder_run: returning MAD_FLOW_STOP\n");
       return MAD_FLOW_STOP;
     } else {
       /* The guard bytes don't all fit in our buffer, so we need to continue
@@ -111,10 +114,12 @@ enum mad_flow error_default(int *bad_last_frame, struct mad_stream *stream,
 {
   switch (stream->error) {
   case MAD_ERROR_BADCRC:
-    if (*bad_last_frame)
+    if (*bad_last_frame) {
+      mp_printf(&mp_plat_print, "bad CRC, muting frame\n");
       mad_frame_mute(frame);
-    else
+    } else {
       *bad_last_frame = 1;
+    }
 
     return MAD_FLOW_IGNORE;
 

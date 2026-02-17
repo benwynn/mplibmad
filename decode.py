@@ -45,12 +45,13 @@ def input_callback(decoder, data, buffer):
     mv = memoryview(buffer)
 
     while room > 0:
-      bytes_read = source.readinto(mv[bytes_read:])
-      room -= bytes_read
+      retval = source.readinto(mv[bytes_read:])
+      bytes_read += retval
+      room -= retval
       print(f"bytes_read: {bytes_read}")
-      if bytes_read == 0:
-          # nothing new read? EOF
-          return 0
+      if retval == 0:
+          # we've reached EOF, return partial buffer
+          return bytes_read
       
     input_state += bytes_read
     if (input_state % 4096) == 0:
@@ -88,33 +89,30 @@ def output_callback(decoder, data):
     if first_write:
         dest.setnchannels(pcm['channels'])
         dest.setframerate(pcm['samplerate'])
-        dest.setsampwidth(pcm['width'])
-        print(f"width: len={len(pcm['left'])} length={pcm['length']} width={pcm['width']}")
+        dest.setsampwidth(3) # 24-bit samples
+        print(f"width: array len={len(pcm['left'])} sample count={pcm['length']} width={pcm['width']}")
         print(f"channels={pcm['channels']} samplerate={pcm['samplerate']} length={pcm['length']}")
     
-    frame = bytearray(pcm['channels'] * pcm['width'] * pcm['length'])
-    idx = 0
-    while idx < pcm['length']:
-        frame_idx = idx * pcm['channels']
+    frame = bytearray(pcm['channels'] * 3 * pcm['length'])
+    sample_num = 0 # increments per sample, (source is 4 bytes, dest is 3 bytes)
+    while sample_num < pcm['length']:
+        pcm_idx = sample_num * 4
+        frame_idx = sample_num * 3 * pcm['channels']
 
-        frame[frame_idx+0] = pcm['left'][idx+3]
-        frame[frame_idx+1] = pcm['left'][idx+2]
-        frame[frame_idx+2] = pcm['left'][idx+1]
-        frame[frame_idx+3] = pcm['left'][idx+0]
+        frame[frame_idx+0] = pcm['left'][pcm_idx+1]
+        frame[frame_idx+1] = pcm['left'][pcm_idx+2]
+        frame[frame_idx+2] = pcm['left'][pcm_idx+3]
         if pcm['channels'] > 1:
-            frame[frame_idx+4] = 0 #pcm['right'][idx+0]
-            frame[frame_idx+5] = 0 #pcm['right'][idx+0]
-            frame[frame_idx+6] = 0 #pcm['right'][idx+0]
-            frame[frame_idx+7] = 0 #pcm['right'][idx+0]
+            frame[frame_idx+3] = pcm['right'][pcm_idx+1]
+            frame[frame_idx+4] = pcm['right'][pcm_idx+2]
+            frame[frame_idx+5] = pcm['right'][pcm_idx+3]
 
-        if idx%1000==0:
-            sample_left = struct.unpack("<f", pcm['left'][idx:idx+4])[0]
-            sample_frame = struct.unpack("<f", frame[frame_idx:frame_idx+4])
-            print(f"sample{idx}: {sample_left:02.4f}")
-            print(f" left: {sample_left}={idx:04}={hex(pcm['left'][idx]):04}|{hex(pcm['left'][idx+1]):04}|{hex(pcm['left'][idx+2]):04}|{hex(pcm['left'][idx+3]):04}")
-            print(f"frame: {sample_frame}={frame_idx:04}={hex(frame[frame_idx]):04}|{hex(frame[frame_idx+1]):04}|{hex(frame[frame_idx+2]):04}|{hex(frame[frame_idx+3]):04}")
+        if sample_num%1000==0:
+            sample = (pcm['left'][pcm_idx+0] << 24) | (pcm['left'][pcm_idx+1] << 16) | (pcm['left'][pcm_idx+2] << 8) | pcm['left'][pcm_idx+3]
+            print(f"pcm sample[{sample_num}]: {hex(sample)} -> sign={sample >> 31} int={(sample) >> 28 & 0x7} frac={sample & 0xFFFFFFF}")
 
-        idx += pcm['width'] * pcm['channels']
+        sample_num += 1
+    #dest.write(frame)
     dest.writeframes(frame)
     first_write = False
 
@@ -139,7 +137,7 @@ def decode_file(source, dest):
     assert decoder is not None, "Decoder() should return an object"
     time.sleep(1)
     result = decoder.run()
-    return result
+    return not result
 
 def main():
     print("Start decode...")
@@ -148,6 +146,7 @@ def main():
     input_name = "test.mp3"
     output_name = "output.wav"
     with open(input_name, "rb") as input_file:
+        #with open(output_name, "wb") as output_file:
         with wave.open(output_name, "w") as output_file:
             print(f"Decoding from {input_name} to {output_name}")
             result = decode_file(input_file, output_file)
