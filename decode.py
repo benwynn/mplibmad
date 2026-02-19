@@ -89,30 +89,38 @@ def output_callback(decoder, data):
     if first_write:
         dest.setnchannels(pcm['channels'])
         dest.setframerate(pcm['samplerate'])
-        dest.setsampwidth(3) # 24-bit samples
+        dest.setsampwidth(2) # 16-bit samples
         print(f"width: array len={len(pcm['left'])} sample count={pcm['length']} width={pcm['width']}")
         print(f"channels={pcm['channels']} samplerate={pcm['samplerate']} length={pcm['length']}")
     
-    frame = bytearray(pcm['channels'] * 3 * pcm['length'])
-    sample_num = 0 # increments per sample, (source is 4 bytes, dest is 3 bytes)
+    frame = bytearray(pcm['channels'] * 2 * pcm['length'])
+    sample_num = 0 # increments per sample, (source is 4 bytes, dest is 2 bytes)
+    qfac = 2**(28-24)
     while sample_num < pcm['length']:
         pcm_idx = sample_num * 4
-        frame_idx = sample_num * 3 * pcm['channels']
+        frame_idx = sample_num * 2 * pcm['channels']
 
-        frame[frame_idx+0] = pcm['left'][pcm_idx+1]
-        frame[frame_idx+1] = pcm['left'][pcm_idx+2]
-        frame[frame_idx+2] = pcm['left'][pcm_idx+3]
-        if pcm['channels'] > 1:
-            frame[frame_idx+3] = pcm['right'][pcm_idx+1]
-            frame[frame_idx+4] = pcm['right'][pcm_idx+2]
-            frame[frame_idx+5] = pcm['right'][pcm_idx+3]
+        sample_raw = struct.unpack("<i", pcm['left'][pcm_idx:pcm_idx+4])[0]
+        sample_scaled = mplibmad.scale(sample_raw)
+        sample = struct.pack(">h", sample_scaled)
 
-        if sample_num%1000==0:
-            sample = (pcm['left'][pcm_idx+0] << 24) | (pcm['left'][pcm_idx+1] << 16) | (pcm['left'][pcm_idx+2] << 8) | pcm['left'][pcm_idx+3]
-            print(f"pcm sample[{sample_num}]: {hex(sample)} -> sign={sample >> 31} int={(sample) >> 28 & 0x7} frac={sample & 0xFFFFFFF}")
+        if sample_num%500==0:
+            print(f"orig={pcm['left'][pcm_idx:pcm_idx+4].hex()} sample_raw={sample_raw} sample_scaled={sample_scaled} -> sample: {sample.hex()} or {(sample_scaled>>8) & 0xFF}:{(sample_scaled>>0) & 0xFF}")
 
         sample_num += 1
-    #dest.write(frame)
+
+        # write out 16-bit little endian pcm samples
+        frame[frame_idx+0] = sample[1]
+        frame[frame_idx+1] = sample[0]
+
+        # if stereo, write right channel sample
+        if pcm['channels'] > 1:
+            sample_raw = struct.unpack("<i", pcm['right'][pcm_idx:pcm_idx+4])[0]
+            sample_scaled = mplibmad.scale(sample_raw)
+            sample = struct.pack(">h", sample_scaled)
+            frame[frame_idx+2] = sample[1]
+            frame[frame_idx+3] = sample[0]
+
     dest.writeframes(frame)
     first_write = False
 

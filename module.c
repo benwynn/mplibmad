@@ -8,6 +8,39 @@
 // instantiated in global context so it's accessible everywhere
 mp_obj_full_type_t mp_type_libmad_decoder;
 
+
+/*
+ * The following utility routine performs simple rounding, clipping, and
+ * scaling of MAD's high-resolution samples down to 16 bits. It does not
+ * perform any dithering or noise shaping, which would be recommended to
+ * obtain any exceptional audio quality. It is therefore not recommended to
+ * use this routine if high-quality output is desired.
+ */
+
+static
+mp_obj_t scale(mp_obj_t sample_in)
+{
+  mad_fixed_t sample = mp_obj_get_int(sample_in);
+  //mp_printf(&mp_plat_print, "mp_libmad_scale: %d == %x)\n", sample, sample);
+  signed int retval = sample;
+
+  /* round */
+  retval += (1L << (MAD_F_FRACBITS - 16));
+
+  /* clip */
+  if (retval >= MAD_F_ONE)
+    retval = MAD_F_ONE - 1;
+  else if (retval < -MAD_F_ONE)
+    retval = -MAD_F_ONE;
+
+  /* quantize */
+  retval = retval >> (MAD_F_FRACBITS + 1 - 16);
+
+  //mp_printf(&mp_plat_print, "mp_libmad_scale: %d == %x  yields %d == %x\n", sample, sample, retval, retval);
+  return mp_obj_new_int(retval);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_scale_obj, scale);
+
 // Implementation of libmad.Decoder
 
 // Slot: make_new
@@ -199,6 +232,7 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
 
   // Make the Decoder type available on the module
   mp_store_global(MP_QSTR_Decoder, MP_OBJ_FROM_PTR(&mp_type_libmad_decoder));
+  mp_store_global(MP_QSTR_scale, MP_OBJ_FROM_PTR(&mp_libmad_scale_obj));
 
   // Store some constants on the module
   mp_store_global(MP_QSTR_MAD_FLOW_CONTINUE, mp_obj_new_int(MAD_FLOW_CONTINUE));
