@@ -43,7 +43,7 @@ void mp_obj_print_helper(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t
 
 #ifndef NDEBUG
 void panic(char *);
-# if ARCH == x64
+# ifndef __NEWLIB__
 void __assert_fail(const char *__assertion, const char *__file, unsigned int __line, const char *__function)
 # else
 void __assert_func(const char *file, int line, const char *func, const char *failedexpr)
