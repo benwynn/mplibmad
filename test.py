@@ -1,4 +1,8 @@
-import mplibmad_x64 as mplibmad # type: ignore
+try:
+    import mplibmad_x64 as mplibmad # type: ignore
+except ImportError:
+    import mplibmad # type: ignore
+
 import time
 
 class EnterExitLog():
