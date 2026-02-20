@@ -1,11 +1,43 @@
+hardware = False
 try:
     import mplibmad_x64 as mplibmad # type: ignore
 except ImportError:
     import mplibmad
+    hardware = True
 
 import time, os
 import struct
 import wave
+
+if hardware:
+    from machine import SPI, Pin
+    import sdcard
+    SPI_BAUD = 25000000 # 25Mhz
+
+    # these just happen to be the pins i have wired up
+    def sdsetup():
+        spi = SPI(1, baudrate=SPI_BAUD, sck = Pin(10), mosi=Pin(11, Pin.OUT, value=1), miso=Pin(8))
+        cs = Pin(9, mode=Pin.OUT, value=1)
+        sd = sdcard.SDCard(spi, cs, baudrate = SPI_BAUD)
+
+        if False:
+            sectors = sd.ioctl(4, None)
+            blocksize = sd.ioctl(5, None)
+            print(f"capacity = {sectors*blocksize}, sectors = {sectors}, blocksize = {blocksize}")
+
+        files = os.listdir()
+        if "test" not in files:
+            os.mkdir("/test")
+
+        test_files = os.listdir('/test')
+        print(f"before: {test_files}")
+        os.mount(sd, "/test")
+        test_files = os.listdir('/test')
+        print(f"after: {test_files}")
+else:
+    def sdsetup():
+        print("Not running on hardware, skipping SD card setup")
+    
 
 class EnterExitLog():
     def __init__(self, name):
@@ -46,6 +78,7 @@ def input_callback(decoder, data, buffer):
 
     bytes_read = 0
     room = len(buffer)
+    print(f"input_callback buffer size: {room}")
     mv = memoryview(buffer)
 
     while room > 0:
@@ -152,11 +185,14 @@ def decode_file(source, dest):
     return not result
 
 def main():
+    print("Setting up SD card...")
+    sdsetup()
+
     print("Start decode...")
     print(dir(mplibmad))
     print(os.listdir())
-    input_name = "test.mp3"
-    output_name = "output.wav"
+    input_name = "test/test.mp3"
+    output_name = "test/output.wav"
     with open(input_name, "rb") as input_file:
         #with open(output_name, "wb") as output_file:
         with wave.open(output_name, "w") as output_file:

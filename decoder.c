@@ -23,7 +23,7 @@
 
 
 static
-enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder, unsigned char *buf, int room) {
+int input_cb(mp_obj_libmad_decoder_t *decoder, unsigned char *buf, int room) {
   //mp_printf(&mp_plat_print, "In input_cb(%p)\n", decoder);
 
   mp_obj_t tmpbuf = mp_obj_new_bytearray_by_ref(room, buf);
@@ -34,9 +34,9 @@ enum mad_flow input_cb(mp_obj_libmad_decoder_t *decoder, unsigned char *buf, int
   args[2] = tmpbuf;
 
   mp_obj_t result = mp_call_function_n_kw(decoder->py_input_cb, 3, 0, args);
-  int flow = mp_obj_get_int(result);
+  int bytesread = mp_obj_get_int(result);
   
-  return (enum mad_flow)flow;
+  return bytesread;
 }
 
 // Source - https://stackoverflow.com/a/43255382
@@ -60,6 +60,7 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
 
   if (bytesread < 0) {
     /* Read error. */
+    mp_printf(&mp_plat_print, "mad_decoder_run: READ ERROR\n");
     return MAD_FLOW_STOP;
   } else if (bytesread == 0) {
     mp_printf(&mp_plat_print, "mad_decoder_run: EOF %d\n", keep);
