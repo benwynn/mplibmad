@@ -56,14 +56,14 @@ static enum mad_flow get_input(mp_obj_libmad_decoder_t *decoder) {
   /* Append new data to the buffer. */
   int bytesread = input_cb(decoder, decoder->stream.buffer + keep, room);
 
-  mp_printf(&mp_plat_print, "mad_decoder_run: input %d\n", bytesread);
+  //mp_printf(&mp_plat_print, "mad_decoder_run: input %d\n", bytesread);
 
   if (bytesread < 0) {
     /* Read error. */
-    mp_printf(&mp_plat_print, "mad_decoder_run: READ ERROR\n");
+    mp_printf(&mp_plat_print, "mad_decoder_run: READ ERROR (%d)\n", bytesread);
     return MAD_FLOW_STOP;
   } else if (bytesread == 0) {
-    mp_printf(&mp_plat_print, "mad_decoder_run: EOF %d\n", keep);
+    mp_printf(&mp_plat_print, "mad_decoder_run: EOF keep=%d, bytesread=%d\n", keep, bytesread);
 
     /* End of file. Append MAD_BUFFER_GUARD zero bytes to make sure that the
     last frame is properly decoded. */
@@ -178,7 +178,6 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
 
   decoder->stream.options = decoder->options;
   do {
-    mp_printf(&mp_plat_print, "mad_decoder_run: one\n");
     switch (get_input(decoder)) {
       case MAD_FLOW_STOP:
         goto done;

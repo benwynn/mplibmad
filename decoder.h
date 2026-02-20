@@ -41,6 +41,7 @@ typedef struct {
 
   // internal mp3 buffer will be used by the stream object
   unsigned char mp3buf[MP3_BUF_SIZE];
+  int16_t samples[2][1152];
 
   // add addional data for MicroPython callbacks
   mp_obj_t cb_data;

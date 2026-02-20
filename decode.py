@@ -4,7 +4,8 @@ try:
 except ImportError:
     import mplibmad
     hardware = True
-
+import sys
+sys.path.append('./lib')
 import time, os
 import struct
 import wave
@@ -73,19 +74,18 @@ input_state = 0
 def input_callback(decoder, data, buffer):
     global input_state
 
-    print(f"buffer: len = {len(buffer)}")
+    #print(f"buffer: len = {len(buffer)}")
     source = data['source']
 
     bytes_read = 0
     room = len(buffer)
-    print(f"input_callback buffer size: {room}")
     mv = memoryview(buffer)
 
     while room > 0:
       retval = source.readinto(mv[bytes_read:])
       bytes_read += retval
       room -= retval
-      print(f"bytes_read: {bytes_read}")
+      #print(f"bytes_read: {bytes_read}")
       if retval == 0:
           # we've reached EOF, return partial buffer
           return bytes_read
@@ -101,66 +101,50 @@ def input_callback(decoder, data, buffer):
     #decoder.stream_buffer(data['filebuf'], bytes_read)
     return bytes_read
 
-def scale_sample(sample):
-    # round 
-    MAD_F_ONE = 0x10000000
-    MAD_F_FRACBITS = 28
-    sample += (1 << (MAD_F_FRACBITS - 16))
-
-    # clip
-    if sample >= MAD_F_ONE:
-        sample = MAD_F_ONE - 1
-    elif sample < -MAD_F_ONE:
-        sample = -MAD_F_ONE
-
-    # quantize
-    return (sample >> (MAD_F_FRACBITS + 1 - 16))
-
-
 first_write = True
 def output_callback(decoder, data):
     global first_write
     dest = data['dest']
+
     pcm = decoder.get_pcm()
 
     if first_write:
         dest.setnchannels(pcm['channels'])
         dest.setframerate(pcm['samplerate'])
-        dest.setsampwidth(2) # 16-bit samples
+        dest.setsampwidth(pcm['width']) # 2 for 16-bit samples
         print(f"width: array len={len(pcm['left'])} sample count={pcm['length']} width={pcm['width']}")
         print(f"channels={pcm['channels']} samplerate={pcm['samplerate']} length={pcm['length']}")
     
-    frame = bytearray(pcm['channels'] * 2 * pcm['length'])
+    frame = bytearray(pcm['channels'] * pcm['width'] * pcm['length'])
     sample_num = 0 # increments per sample, (source is 4 bytes, dest is 2 bytes)
-    qfac = 2**(28-24)
     while sample_num < pcm['length']:
-        pcm_idx = sample_num * 4
-        frame_idx = sample_num * 2 * pcm['channels']
+        # input is linear, but output is interleaved left and right samples
+        pcm_idx = sample_num * pcm['width']
+        frame_idx = sample_num * pcm['channels'] * pcm['width']
 
-        sample_raw = struct.unpack("<i", pcm['left'][pcm_idx:pcm_idx+4])[0]
-        sample_scaled = mplibmad.scale(sample_raw)
-        sample = struct.pack(">h", sample_scaled)
+        #sample_raw = struct.unpack("<i", pcm['left'][pcm_idx:pcm_idx+4])[0]
+        #sample_scaled = mplibmad.scale(sample_raw)
+        #sample = struct.pack(">h", sample_scaled)
 
-        if sample_num%500==0:
-            print(f"orig={pcm['left'][pcm_idx:pcm_idx+4].hex()} sample_raw={sample_raw} sample_scaled={sample_scaled} -> sample: {sample.hex()} or {(sample_scaled>>8) & 0xFF}:{(sample_scaled>>0) & 0xFF}")
+        #if sample_num%500==0:
+        #    print(f"orig={pcm['left'][pcm_idx:pcm_idx+4].hex()} sample_raw={sample_raw} sample_scaled={sample_scaled} -> sample: {sample.hex()} or {(sample_scaled>>8) & 0xFF}:{(sample_scaled>>0) & 0xFF}")
 
         sample_num += 1
 
         # write out 16-bit little endian pcm samples
-        frame[frame_idx+0] = sample[1]
-        frame[frame_idx+1] = sample[0]
+        frame[frame_idx+0] = pcm['left'][pcm_idx+0]
+        frame[frame_idx+1] = pcm['left'][pcm_idx+1]
 
         # if stereo, write right channel sample
         if pcm['channels'] > 1:
-            sample_raw = struct.unpack("<i", pcm['right'][pcm_idx:pcm_idx+4])[0]
-            sample_scaled = mplibmad.scale(sample_raw)
-            sample = struct.pack(">h", sample_scaled)
-            frame[frame_idx+2] = sample[1]
-            frame[frame_idx+3] = sample[0]
+            #sample_raw = struct.unpack("<i", pcm['right'][pcm_idx:pcm_idx+4])[0]
+            #sample_scaled = mplibmad.scale(sample_raw)
+            #sample = struct.pack(">h", sample_scaled)
+            frame[frame_idx+2] = pcm['right'][pcm_idx+0]
+            frame[frame_idx+3] = pcm['right'][pcm_idx+1]
 
     dest.writeframes(frame)
     first_write = False
-
     return mplibmad.MAD_FLOW_CONTINUE
 
 @test_decorator
