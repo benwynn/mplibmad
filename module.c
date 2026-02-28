@@ -8,45 +8,6 @@
 // instantiated in global context so it's accessible everywhere
 mp_obj_full_type_t mp_type_libmad_decoder;
 
-
-/*
- * The following utility routine performs simple rounding, clipping, and
- * scaling of MAD's high-resolution samples down to 16 bits. It does not
- * perform any dithering or noise shaping, which would be recommended to
- * obtain any exceptional audio quality. It is therefore not recommended to
- * use this routine if high-quality output is desired.
- */
-
- static inline
- signed int scale(int sample) {
-  /* round */
-  sample += (1L << (MAD_F_FRACBITS - 16));
-
-  /* clip */
-  if (sample >= MAD_F_ONE)
-    sample = MAD_F_ONE - 1;
-  else if (sample < -MAD_F_ONE)
-    sample = -MAD_F_ONE;
-
-  /* quantize */
-  sample = sample >> (MAD_F_FRACBITS + 1 - 16);
-
-  return sample;
-}
-
-static
-mp_obj_t mp_libmad_scale(mp_obj_t sample_in)
-{
-  mad_fixed_t sample = mp_obj_get_int(sample_in);
-  //mp_printf(&mp_plat_print, "mp_libmad_scale: %d == %x)\n", sample, sample);
-  
-  signed int retval = scale(sample);
-
-  //mp_printf(&mp_plat_print, "mp_libmad_scale: %d == %x  yields %d == %x\n", sample, sample, retval, retval);
-  return mp_obj_new_int(retval);
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(mp_libmad_scale_obj, mp_libmad_scale);
-
 // Implementation of libmad.Decoder
 
 // Slot: make_new
@@ -158,29 +119,17 @@ static mp_obj_t get_pcm(mp_obj_t self_in) {
   struct mad_pcm *pcm = &self->synth.pcm;
 
   // expecting width = 2 for 16bit pcm samples
-  int width = sizeof(self->samples[0][0]);
+  int width = sizeof(pcm->samples[0][0]);
 
   if (pcm->length < 1152 || self->data_left == NULL || self->data_right == NULL) {
     // re-allocate these even if they're not null because this chunk has smaller output
-    self->data_left = mp_obj_new_bytearray_by_ref(width*pcm->length, (char *)self->samples[0]);
-    self->data_right = mp_obj_new_bytearray_by_ref(width*pcm->length, (char *)self->samples[1]);
-  }
-
-  // scale the samples for output
-  int channels = pcm->channels;
-  if (channels > 2) {
-    channels = 2; // clamp value to sterio output
-  }
-
-  for (int ch=0; ch < channels; ch++) {
-    for (int i=0; i < pcm->length; i++) {
-      self->samples[ch][i] = scale(pcm->samples[ch][i]);
-    }
+    self->data_left = mp_obj_new_bytearray_by_ref(width*pcm->length, (char *)pcm->samples[0]);
+    self->data_right = mp_obj_new_bytearray_by_ref(width*pcm->length, (char *)pcm->samples[1]);
   }
 
   // return a dictionary with some PCM fields
   mp_obj_t dict = mp_obj_new_dict(6);
-  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_channels), mp_obj_new_int(channels));
+  mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_channels), mp_obj_new_int(pcm->channels));
   mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_samplerate), mp_obj_new_int(pcm->samplerate));
   mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_width), mp_obj_new_int(width));
   mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_length), mp_obj_new_int(pcm->length));
@@ -250,7 +199,6 @@ mp_obj_t mpy_init(mp_obj_fun_bc_t *self, size_t n_args, size_t n_kw, mp_obj_t *a
 
   // Make the Decoder type available on the module
   mp_store_global(MP_QSTR_Decoder, MP_OBJ_FROM_PTR(&mp_type_libmad_decoder));
-  mp_store_global(MP_QSTR_scale, MP_OBJ_FROM_PTR(&mp_libmad_scale_obj));
 
   // Store some constants on the module
   mp_store_global(MP_QSTR_MAD_FLOW_CONTINUE, mp_obj_new_int(MAD_FLOW_CONTINUE));
