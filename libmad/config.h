@@ -12,9 +12,6 @@
 /* Define to 1 if you have the <assert.h> header file. */
 #define HAVE_ASSERT_H 1
 
-/* Define to 1 if you have the <dlfcn.h> header file. */
-/* #undef HAVE_DLFCN_H -- never included */
-
 /* Define to 1 if you have the <errno.h> header file. */
 /* #undef HAVE_ERRNO_H */
 
@@ -27,9 +24,6 @@
 /* Define to 1 if you have the `fork' function. */
 /* #undef HAVE_FORK -- micropython doesn't have fork, afaik */
 
-/* Define to 1 if you have the <inttypes.h> header file. */
-/* #undef HAVE_INTTYPES_H -- never included */
-
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
@@ -39,27 +33,6 @@
 /* Define if your MIPS CPU supports a 2-operand MADD instruction. */
 /* #undef HAVE_MADD_ASM */
 
-/* Define to 1 if you have the <memory.h> header file. */
-/* #undef HAVE_MEMORY_H -- never included */
-
-/* Define to 1 if you have the `pipe' function. */
-/* #undef HAVE_PIPE -- never used */
-
-/* Define to 1 if you have the <stdint.h> header file. */
-/* #undef HAVE_STDINT_H -- never used */
-
-/* Define to 1 if you have the <stdlib.h> header file. */
-/* #undef HAVE_STDLIB_H -- included without checking variable */
-
-/* Define to 1 if you have the <strings.h> header file. */
-/* #undef HAVE_STRINGS_H -- never used */
-
-/* Define to 1 if you have the <string.h> header file. */
-/* #undef HAVE_STRING_H -- included without checking variable */
-
-/* Define to 1 if you have the <sys/stat.h> header file. */
-/* #undef HAVE_SYS_STAT_H -- never used */
-
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
@@ -68,9 +41,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* Define to 1 if you have the `waitpid' function. */
-/* #undef HAVE_WAITPID -- unused */
 
 /* Define to disable debugging assertions. */
 #undef NDEBUG
@@ -128,11 +98,6 @@
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
-/* #undef inline */
-#endif
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef pid_t -- unused */
