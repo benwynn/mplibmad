@@ -290,5 +290,3 @@ int mad_decoder_run(mp_obj_libmad_decoder_t *decoder)
 
   return result;
 }
-
-
