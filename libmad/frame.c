@@ -251,8 +251,8 @@ int free_bitrate(struct mad_stream *stream, struct mad_header const *header)
     peek_header = *header;
 
     if (decode_header(&peek_header, &peek_stream) == 0 &&
-	peek_header.layer == header->layer &&
-	peek_header.samplerate == header->samplerate) {
+        peek_header.layer == header->layer &&
+        peek_header.samplerate == header->samplerate) {
       unsigned int N;
 
       ptr = mad_bit_nextbyte(&stream->ptr);
@@ -260,16 +260,13 @@ int free_bitrate(struct mad_stream *stream, struct mad_header const *header)
       N = ptr - stream->this_frame;
 
       if (header->layer == MAD_LAYER_I) {
-	rate = (unsigned long) header->samplerate *
-	  (N - 4 * pad_slot + 4) / 48 / 1000;
-      }
-      else {
-	rate = (unsigned long) header->samplerate *
-	  (N - pad_slot + 1) / slots_per_frame / 1000;
+        rate = (unsigned long) header->samplerate * (N - 4 * pad_slot + 4) / 48 / 1000;
+      } else {
+        rate = (unsigned long) header->samplerate * (N - pad_slot + 1) / slots_per_frame / 1000;
       }
 
       if (rate >= 8)
-	break;
+        break;
     }
 
     mad_bit_skip(&stream->ptr, 8);
@@ -327,7 +324,7 @@ int mad_header_decode(struct mad_header *header, struct mad_stream *stream)
 
     if (mad_stream_sync(stream) == -1) {
       if (end - stream->next_frame >= MAD_BUFFER_GUARD)
-	stream->next_frame = end - MAD_BUFFER_GUARD;
+        stream->next_frame = end - MAD_BUFFER_GUARD;
 
       stream->error = MAD_ERROR_BUFLEN;
       goto fail;
@@ -346,14 +343,12 @@ int mad_header_decode(struct mad_header *header, struct mad_stream *stream)
     goto fail;
 
   /* calculate frame duration */
-  mad_timer_set(&header->duration, 0,
-		32 * MAD_NSBSAMPLES(header), header->samplerate);
+  mad_timer_set(&header->duration, 0, 32 * MAD_NSBSAMPLES(header), header->samplerate);
 
   /* calculate free bit rate */
   if (header->bitrate == 0) {
-    if ((stream->freerate == 0 || !stream->sync ||
-	 (header->layer == MAD_LAYER_III && stream->freerate > 640000)) &&
-	free_bitrate(stream, header) == -1)
+    if ((stream->freerate == 0 || !stream->sync || (header->layer == MAD_LAYER_III && stream->freerate > 640000))
+        && free_bitrate(stream, header) == -1)
       goto fail;
 
     header->bitrate = stream->freerate;
@@ -368,8 +363,7 @@ int mad_header_decode(struct mad_header *header, struct mad_stream *stream)
   else {
     unsigned int slots_per_frame;
 
-    slots_per_frame = (header->layer == MAD_LAYER_III &&
-		       (header->flags & MAD_FLAG_LSF_EXT)) ? 72 : 144;
+    slots_per_frame = (header->layer == MAD_LAYER_III && (header->flags & MAD_FLAG_LSF_EXT)) ? 72 : 144;
 
     N = (slots_per_frame * header->bitrate / header->samplerate) + pad_slot;
   }
