@@ -30,6 +30,31 @@
 # include "synth.h"
 
 /*
+ * The following utility routine performs simple rounding, clipping, and
+ * scaling of MAD's high-resolution samples down to 16 bits. It does not
+ * perform any dithering or noise shaping, which would be recommended to
+ * obtain any exceptional audio quality. It is therefore not recommended to
+ * use this routine if high-quality output is desired.
+ */
+
+ static inline
+ signed short scale_sample(int sample) {
+  /* round */
+  sample += (1L << (MAD_F_FRACBITS - 16));
+
+  /* clip */
+  if (sample >= MAD_F_ONE)
+    sample = MAD_F_ONE - 1;
+  else if (sample < -MAD_F_ONE)
+    sample = -MAD_F_ONE;
+
+  /* quantize */
+  sample = sample >> (MAD_F_FRACBITS + 1 - 16);
+
+  return sample;
+}
+
+/*
  * NAME:	synth->init()
  * DESCRIPTION:	initialize synth struct
  */
@@ -122,6 +147,7 @@ void mad_synth_mute(struct mad_synth *synth)
 static
 void dct32(mad_fixed_t const in[32], unsigned int slot, mad_fixed_t lo[16][8], mad_fixed_t hi[16][8])
 {
+  // wow is this hard on the stack...   704 bytes?
   mad_fixed_t t0,   t1,   t2,   t3,   t4,   t5,   t6,   t7;
   mad_fixed_t t8,   t9,   t10,  t11,  t12,  t13,  t14,  t15;
   mad_fixed_t t16,  t17,  t18,  t19,  t20,  t21,  t22,  t23;
@@ -557,7 +583,8 @@ static
 void synth_full(struct mad_synth *synth, struct mad_frame const *frame, unsigned int nch, unsigned int ns)
 {
   unsigned int phase, ch, s, sb, pe, po;
-  mad_fixed_t *pcm1, *pcm2, (*filter)[2][2][16][8];
+  signed short *pcm1, *pcm2;
+  mad_fixed_t (*filter)[2][2][16][8];
   mad_fixed_t const (*sbsample)[36][32];
   register mad_fixed_t (*fe)[8], (*fx)[8], (*fo)[8];
   register mad_fixed_t const (*Dptr)[32], *ptr;
@@ -606,7 +633,7 @@ void synth_full(struct mad_synth *synth, struct mad_frame const *frame, unsigned
       MLA(hi, lo, (*fe)[6], ptr[ 4]);
       MLA(hi, lo, (*fe)[7], ptr[ 2]);
 
-      *pcm1++ = SHIFT(MLZ(hi, lo));
+      *pcm1++ = scale_sample(SHIFT(MLZ(hi, lo)));
 
       pcm2 = pcm1 + 30;
 
@@ -637,7 +664,7 @@ void synth_full(struct mad_synth *synth, struct mad_frame const *frame, unsigned
         MLA(hi, lo, (*fe)[1], ptr[14]);
         MLA(hi, lo, (*fe)[0], ptr[ 0]);
 
-        *pcm1++ = SHIFT(MLZ(hi, lo));
+        *pcm1++ = scale_sample(SHIFT(MLZ(hi, lo)));
 
         ptr = *Dptr - pe;
         ML0(hi, lo, (*fe)[0], ptr[31 - 16]);
@@ -659,7 +686,7 @@ void synth_full(struct mad_synth *synth, struct mad_frame const *frame, unsigned
         MLA(hi, lo, (*fo)[1], ptr[31 - 14]);
         MLA(hi, lo, (*fo)[0], ptr[31 - 16]);
 
-        *pcm2-- = SHIFT(MLZ(hi, lo));
+        *pcm2-- = scale_sample(SHIFT(MLZ(hi, lo)));
 
         ++fo;
       }
@@ -676,7 +703,7 @@ void synth_full(struct mad_synth *synth, struct mad_frame const *frame, unsigned
       MLA(hi, lo, (*fo)[6], ptr[ 4]);
       MLA(hi, lo, (*fo)[7], ptr[ 2]);
 
-      *pcm1 = SHIFT(-MLZ(hi, lo));
+      *pcm1 = scale_sample(SHIFT(-MLZ(hi, lo)));
       pcm1 += 16;
 
       phase = (phase + 1) % 16;
@@ -694,7 +721,8 @@ void synth_half(struct mad_synth *synth, struct mad_frame const *frame,
 		unsigned int nch, unsigned int ns)
 {
   unsigned int phase, ch, s, sb, pe, po;
-  mad_fixed_t *pcm1, *pcm2, (*filter)[2][2][16][8];
+  signed short *pcm1, *pcm2;
+  mad_fixed_t (*filter)[2][2][16][8];
   mad_fixed_t const (*sbsample)[36][32];
   register mad_fixed_t (*fe)[8], (*fx)[8], (*fo)[8];
   register mad_fixed_t const (*Dptr)[32], *ptr;
@@ -742,7 +770,7 @@ void synth_half(struct mad_synth *synth, struct mad_frame const *frame,
       MLA(hi, lo, (*fe)[6], ptr[ 4]);
       MLA(hi, lo, (*fe)[7], ptr[ 2]);
 
-      *pcm1++ = SHIFT(MLZ(hi, lo));
+      *pcm1++ = scale_sample(SHIFT(MLZ(hi, lo)));
 
       pcm2 = pcm1 + 14;
 
@@ -774,7 +802,7 @@ void synth_half(struct mad_synth *synth, struct mad_frame const *frame,
           MLA(hi, lo, (*fe)[1], ptr[14]);
           MLA(hi, lo, (*fe)[0], ptr[ 0]);
 
-          *pcm1++ = SHIFT(MLZ(hi, lo));
+          *pcm1++ = scale_sample(SHIFT(MLZ(hi, lo)));
 
           ptr = *Dptr - po;
           ML0(hi, lo, (*fo)[7], ptr[31 -  2]);
@@ -796,7 +824,7 @@ void synth_half(struct mad_synth *synth, struct mad_frame const *frame,
           MLA(hi, lo, (*fe)[6], ptr[31 -  4]);
           MLA(hi, lo, (*fe)[7], ptr[31 -  2]);
 
-          *pcm2-- = SHIFT(MLZ(hi, lo));
+          *pcm2-- = scale_sample(SHIFT(MLZ(hi, lo)));
         }
 
         ++fo;
@@ -814,7 +842,7 @@ void synth_half(struct mad_synth *synth, struct mad_frame const *frame,
       MLA(hi, lo, (*fo)[6], ptr[ 4]);
       MLA(hi, lo, (*fo)[7], ptr[ 2]);
 
-      *pcm1 = SHIFT(-MLZ(hi, lo));
+      *pcm1 = scale_sample(SHIFT(-MLZ(hi, lo)));
       pcm1 += 8;
 
       phase = (phase + 1) % 16;

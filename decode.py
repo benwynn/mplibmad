@@ -9,14 +9,15 @@ sys.path.append('./lib')
 import time, os
 import struct
 import wave
+import micropython
 
 if hardware:
     from machine import SPI, Pin
     import sdcard
     SPI_BAUD = 25000000 # 25Mhz
 
-    # these just happen to be the pins i have wired up
     def sdsetup():
+        # these just happen to be the pins i have wired up
         spi = SPI(1, baudrate=SPI_BAUD, sck = Pin(10), mosi=Pin(11, Pin.OUT, value=1), miso=Pin(8))
         cs = Pin(9, mode=Pin.OUT, value=1)
         sd = sdcard.SDCard(spi, cs, baudrate = SPI_BAUD)
@@ -98,7 +99,6 @@ def input_callback(decoder, data, buffer):
         print("input_callback reached EOF")
         return 0
 
-    #decoder.stream_buffer(data['filebuf'], bytes_read)
     return bytes_read
 
 first_write = True
@@ -115,20 +115,13 @@ def output_callback(decoder, data):
         print(f"width: array len={len(pcm['left'])} sample count={pcm['length']} width={pcm['width']}")
         print(f"channels={pcm['channels']} samplerate={pcm['samplerate']} length={pcm['length']}")
     
+    # Interleave the left and right channel samples into an output frame
     frame = bytearray(pcm['channels'] * pcm['width'] * pcm['length'])
-    sample_num = 0 # increments per sample, (source is 4 bytes, dest is 2 bytes)
+    sample_num = 0 # increments per sample
     while sample_num < pcm['length']:
-        # input is linear, but output is interleaved left and right samples
         pcm_idx = sample_num * pcm['width']
         frame_idx = sample_num * pcm['channels'] * pcm['width']
-
-        #sample_raw = struct.unpack("<i", pcm['left'][pcm_idx:pcm_idx+4])[0]
-        #sample_scaled = mplibmad.scale(sample_raw)
-        #sample = struct.pack(">h", sample_scaled)
-
-        #if sample_num%500==0:
-        #    print(f"orig={pcm['left'][pcm_idx:pcm_idx+4].hex()} sample_raw={sample_raw} sample_scaled={sample_scaled} -> sample: {sample.hex()} or {(sample_scaled>>8) & 0xFF}:{(sample_scaled>>0) & 0xFF}")
-
+        
         sample_num += 1
 
         # write out 16-bit little endian pcm samples
@@ -137,9 +130,6 @@ def output_callback(decoder, data):
 
         # if stereo, write right channel sample
         if pcm['channels'] > 1:
-            #sample_raw = struct.unpack("<i", pcm['right'][pcm_idx:pcm_idx+4])[0]
-            #sample_scaled = mplibmad.scale(sample_raw)
-            #sample = struct.pack(">h", sample_scaled)
             frame[frame_idx+2] = pcm['right'][pcm_idx+0]
             frame[frame_idx+3] = pcm['right'][pcm_idx+1]
 
@@ -172,17 +162,18 @@ def main():
     print("Setting up SD card...")
     sdsetup()
 
+    micropython.mem_info()
     print("Start decode...")
     print(dir(mplibmad))
     print(os.listdir())
     input_name = "test/test.mp3"
     output_name = "test/output.wav"
     with open(input_name, "rb") as input_file:
-        #with open(output_name, "wb") as output_file:
         with wave.open(output_name, "w") as output_file:
             print(f"Decoding from {input_name} to {output_name}")
             result = decode_file(input_file, output_file)
             print(f"decode_file result: {result}")
+            micropython.mem_info()
     print("Done.")
     
 if __name__ == "__main__":
