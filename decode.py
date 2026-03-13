@@ -169,7 +169,6 @@ def main():
     input_name = "test/test.mp3"
     output_name = "test/output.wav"
     with open(input_name, "rb") as input_file:
-        #with open(output_name, "wb") as output_file:
         with wave.open(output_name, "w") as output_file:
             print(f"Decoding from {input_name} to {output_name}")
             result = decode_file(input_file, output_file)

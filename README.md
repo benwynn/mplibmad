@@ -34,7 +34,14 @@ This is my attempt to make it suitable for MicroPython, to run on microcontrolle
 
 #### Stats
 
-currently, on a pico2 aka armv7emsp:
+
+after optimizing pcm sample sizes:
+- code size: 65936
+- decode time: 180 seconds
+- alt decode time: 93 seconds (no write to sdcard)
+- implies 87 seconds are spent writing 10 megabytes out to the sdcard
+
+first optimizations, on a pico2 aka armv7emsp:
 - code size: 66438 up 100 from 66358
 - decode time: 182 seconds, down from 480 seconds
 
