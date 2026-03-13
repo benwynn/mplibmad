@@ -145,8 +145,7 @@ void mad_synth_mute(struct mad_synth *synth)
  * DESCRIPTION:	perform fast in[32]->out[32] DCT
  */
 static
-void dct32(mad_fixed_t const in[32], unsigned int slot,
-	   mad_fixed_t lo[16][8], mad_fixed_t hi[16][8])
+void dct32(mad_fixed_t const in[32], unsigned int slot, mad_fixed_t lo[16][8], mad_fixed_t hi[16][8])
 {
   // wow is this hard on the stack...   704 bytes?
   mad_fixed_t t0,   t1,   t2,   t3,   t4,   t5,   t6,   t7;
@@ -581,8 +580,7 @@ void synth_full(struct mad_synth *, struct mad_frame const *,
  * DESCRIPTION:	perform full frequency PCM synthesis
  */
 static
-void synth_full(struct mad_synth *synth, struct mad_frame const *frame,
-		unsigned int nch, unsigned int ns)
+void synth_full(struct mad_synth *synth, struct mad_frame const *frame, unsigned int nch, unsigned int ns)
 {
   unsigned int phase, ch, s, sb, pe, po;
   signed short *pcm1, *pcm2;
